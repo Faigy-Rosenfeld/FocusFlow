@@ -1,0 +1,27 @@
+# סביבה ווירטואלית של Python
+.venv/
+venv/
+ENV/
+env/
+
+# קבצי מטמון וקומפילציה של Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# קבצי סביבה ומשתנים רגישים (סיסמאות, מפתחות API וכו')
+.env
+.env.local
+.env.*.local
+
+# תיקיות התקנה של Node.js (במידה ותשתמשי בהם בהמשך)
+node_modules/
+npm-debug.log*
+
+# קבצי מערכת הפעלה ועורכי קוד
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
