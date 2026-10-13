@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from database.connection import get_db
-from routers.auth import get_current_user
+from server.routers.auth import get_current_user
 from database import schema as models
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])

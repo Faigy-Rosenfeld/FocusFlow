@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 
 from database.connection import engine, Base, get_db
-from routers.auth import get_current_user
-from routers import auth, content, sessions
+from server.routers.auth import get_current_user
+from server.routers import auth, content, sessions
 from database import schema as models
 
 from database.schema import User, ContentItem, Session, Reading
