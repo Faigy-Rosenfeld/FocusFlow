@@ -8,14 +8,13 @@ from server.routers.auth import get_current_user
 from server.routers import auth, content, sessions
 from database import schema as models
 
-from database.schema import User, ContentItem, Session, Reading
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Focus-Flow API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
