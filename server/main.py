@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from database.connection import engine, Base, get_db
 from server.routers.auth import get_current_user
-from server.routers import auth, content, sessions
+from server.routers import auth, content, sessions, gemini
 from database import schema as models
 
 Base.metadata.create_all(bind=engine)
@@ -14,7 +14,7 @@ app = FastAPI(title="Focus-Flow API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,6 +23,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(content.router)
 app.include_router(sessions.router)
+app.include_router(gemini.router)
 
 
 @app.get("/health")
