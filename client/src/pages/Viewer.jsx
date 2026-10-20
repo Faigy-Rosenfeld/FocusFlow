@@ -23,6 +23,7 @@ export default function Viewer() {
   const [pageError, setPageError] = useState("");
   const [cameraConsent, setCameraConsent] = useState(false);
   const [questions, setQuestions] = useState([]);
+  const questionsRef = useRef([]);
   const [activeQuestion, setActiveQuestion] = useState(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [alert, setAlert] = useState("");
@@ -79,6 +80,7 @@ export default function Viewer() {
       const videoId = getVideoId(content.source);
       const qs = await fetchQuestions(videoId, content.title).catch(() => []);
       setQuestions(qs);
+      questionsRef.current = qs;
       setLoadingQuestions(false);
     }
   };
@@ -99,16 +101,11 @@ export default function Viewer() {
     await addReading(sessionRef.current.id, positionRef.current, currentScore);
 
     if (currentScore < LOW_FOCUS_THRESHOLD) {
+      const q = getQuestionForPosition(questionsRef.current, positionRef.current);
+      if (!q) return;
       pausedRef.current = true;
       sendPlayerCommand("pauseVideo");
-
-      const q = getQuestionForPosition(questions, positionRef.current);
-      if (q) {
-        setActiveQuestion(q);
-      } else {
-        // no questions available → just rewind
-        handleNoQuestion();
-      }
+      setActiveQuestion(q);
     }
   };
 
