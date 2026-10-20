@@ -5,8 +5,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/gemini", tags=["gemini"])
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash-lite:generateContent"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
 
 
 class QuestionsRequest(BaseModel):
@@ -39,6 +38,7 @@ Return ONLY a valid JSON array, no markdown, no explanation:
 
 @router.post("/questions")
 async def get_questions(req: QuestionsRequest):
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     if not GEMINI_API_KEY:
         return []
 

@@ -15,6 +15,7 @@ export default function Viewer() {
   const { id } = useParams();
   const navigate = useNavigate();
   const playerRef = useRef(null);
+  const ytPlayerRef = useRef(null);
 
   const [content, setContent] = useState(null);
   const [user, setUser] = useState(null);
@@ -34,6 +35,12 @@ export default function Viewer() {
   const sessionRef = useRef(null);
   const positionRef = useRef(0);
   const pausedRef = useRef(false);
+  const lowFocusStartRef = useRef(0);
+
+  const getVideoId = (url) => {
+    const match = url?.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
+    return match?.[1] ?? null;
+  };
 
   useEffect(() => {
     getMe().then((r) => setUser(r.data));
@@ -42,31 +49,39 @@ export default function Viewer() {
       .catch(() => setPageError("Content not found"));
   }, [id]);
 
-  // track youtube position
+  // load YouTube IFrame API and create player
   useEffect(() => {
-    const handler = (e) => {
-      if (e.data?.event === "infoDelivery" && e.data?.info?.currentTime != null) {
-        positionRef.current = e.data.info.currentTime;
-      }
+    if (!content || content.type !== "youtube") return;
+    const videoId = getVideoId(content.source);
+    if (!videoId) return;
+
+    const initPlayer = () => {
+      if (!document.getElementById("yt-player")) return;
+      ytPlayerRef.current = new window.YT.Player("yt-player", {
+        videoId,
+        width: "100%",
+        height: "100%",
+        playerVars: { enablejsapi: 1 },
+        events: {
+          onReady: (e) => { playerRef.current = e.target; },
+        },
+      });
     };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, []);
 
-  const getVideoId = (url) => {
-    const match = url?.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
-    return match?.[1] ?? null;
-  };
+    if (window.YT?.Player) {
+      initPlayer();
+    } else {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = initPlayer;
+    }
 
-  const getYouTubeEmbedUrl = (url) => {
-    const vid = getVideoId(url);
-    return vid ? `https://www.youtube.com/embed/${vid}?enablejsapi=1` : null;
-  };
+    return () => { ytPlayerRef.current?.destroy?.(); };
+  }, [content]);
 
   const sendPlayerCommand = (func, args = []) => {
-    playerRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: "command", func, args }), "*"
-    );
+    playerRef.current?.[func]?.(...args);
   };
 
   const handleStartSession = async () => {
@@ -101,8 +116,11 @@ export default function Viewer() {
     await addReading(sessionRef.current.id, positionRef.current, currentScore);
 
     if (currentScore < LOW_FOCUS_THRESHOLD) {
-      const q = getQuestionForPosition(questionsRef.current, positionRef.current);
+      const pos = playerRef.current?.getCurrentTime?.() ?? positionRef.current;
+      positionRef.current = pos;
+      const q = getQuestionForPosition(questionsRef.current, pos);
       if (!q) return;
+      lowFocusStartRef.current = pos;
       pausedRef.current = true;
       sendPlayerCommand("pauseVideo");
       setActiveQuestion(q);
@@ -128,7 +146,7 @@ export default function Viewer() {
 
   const handleWrongAnswer = () => {
     setActiveQuestion(null);
-    const rewindTo = Math.max(0, positionRef.current - 10);
+    const rewindTo = Math.max(0, lowFocusStartRef.current - 10);
     sendPlayerCommand("seekTo", [rewindTo, true]);
     sendPlayerCommand("playVideo");
     pausedRef.current = false;
@@ -173,13 +191,7 @@ export default function Viewer() {
         <div className="viewer-layout">
           <div className="content-area">
             {content.type === "youtube" ? (
-              <iframe
-                ref={playerRef}
-                src={getYouTubeEmbedUrl(content.source)}
-                title={content.title}
-                allowFullScreen
-                className="youtube-embed"
-              />
+              <div id="yt-player" style={{ width: "100%", aspectRatio: "16/9" }} />
             ) : (
               <div className="text-content">{content.source}</div>
             )}
