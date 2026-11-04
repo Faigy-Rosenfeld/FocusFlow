@@ -61,7 +61,7 @@ export default function Viewer() {
         videoId,
         width: "100%",
         height: "100%",
-        playerVars: { enablejsapi: 1 },
+        playerVars: { enablejsapi: 1, origin: window.location.origin },
         events: {
           onReady: (e) => { playerRef.current = e.target; },
         },
@@ -119,7 +119,11 @@ export default function Viewer() {
       const pos = playerRef.current?.getCurrentTime?.() ?? positionRef.current;
       positionRef.current = pos;
       const q = getQuestionForPosition(questionsRef.current, pos);
-      if (!q) return;
+      if (!q) {
+        // אין שאלה זמינה — עוצרים ומחזירים 10 שניות
+        handleNoQuestion();
+        return;
+      }
       lowFocusStartRef.current = pos;
       pausedRef.current = true;
       sendPlayerCommand("pauseVideo");

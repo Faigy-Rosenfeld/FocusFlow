@@ -1,0 +1,54 @@
+# docker-compose קורא את server/.env לבקאנד.
+# DB credentials מוגדרים כאן ישירות — פשוט וברור.
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: focus_flow_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: focusflow123
+    volumes:
+      - focusflow_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d focus_flow_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── FastAPI Backend ────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    restart: unless-stopped
+    env_file: server/.env
+    environment:
+      # מדרס את DATABASE_URL — משתמש ב-"db" (שם השירות) במקום localhost
+      DATABASE_URL: postgresql://postgres:focusflow123@db:5432/focus_flow_db
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── React Frontend ─────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+      args:
+        VITE_API_URL: http://localhost:8000
+    restart: unless-stopped
+    ports:
+      - "3000:80"   # פורט 3000 בחוץ → 80 בתוך הקונטיינר (nginx)
+    depends_on:
+      - backend
+
+volumes:
+  focusflow_pgdata:

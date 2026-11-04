@@ -15,9 +15,18 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Focus-Flow API")
 
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173",
+    "http://localhost:80",
+    "http://localhost",
+    "http://frontend:80",   # docker-compose service name
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

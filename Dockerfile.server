@@ -1,0 +1,26 @@
+# ── Focus-Flow Backend ──────────────────────────────────────
+# Build context: repo root (both /server and /database packages are needed)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System deps for psycopg2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev gcc \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies (cached layer)
+COPY server/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source packages
+COPY server/ ./server/
+COPY database/ ./database/
+
+# Expose FastAPI port
+EXPOSE 8000
+
+# PYTHONPATH=/app lets Python find both `server` and `database` packages
+ENV PYTHONPATH=/app
+
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
