@@ -13,9 +13,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    // נווט ל-login רק אם זה 401 ואנחנו לא בדף ה-auth עצמו
     if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      window.location.href = "/login";
+      const isAuthRoute = window.location.pathname === "/login" ||
+                          window.location.pathname === "/register";
+      if (!isAuthRoute) {
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(err);
   }
