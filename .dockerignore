@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+ENV/
+*.egg-info/
+
+# Node
+client/node_modules/
+client/dist/
+
+# Git
+.git/
+.gitignore
+
+# Env files — לא להכניס לתוך ה-image
+.env
+.env.*
+server/.env
+client/.env
+
+# IDE
+.vscode/
+.idea/
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
