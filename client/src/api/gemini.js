@@ -38,10 +38,21 @@ export const fetchQuestions = async (videoId, title) => {
 
 export const getQuestionForPosition = (questions, position) => {
   if (!questions?.length) return null;
-  const MAX_DISTANCE = 60;
+
+  const MAX_DISTANCE = 120; // טווח של 2 דקות
+
+  // קודם נחפש שאלה בטווח
   const nearby = questions.filter(q => Math.abs(q.time - position) <= MAX_DISTANCE);
-  if (!nearby.length) return null;
-  return nearby.reduce((closest, q) =>
+
+  if (nearby.length) {
+    // מהשאלות בטווח — הכי קרובה
+    return nearby.reduce((closest, q) =>
+      Math.abs(q.time - position) < Math.abs(closest.time - position) ? q : closest
+    );
+  }
+
+  // אם אין שאלה בטווח — קח את הכי קרובה מכל השאלות
+  return questions.reduce((closest, q) =>
     Math.abs(q.time - position) < Math.abs(closest.time - position) ? q : closest
   );
 };

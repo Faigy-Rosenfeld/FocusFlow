@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import ConfirmDialog from "../components/ConfirmDialog";
+import Toast from "../components/Toast";
 import { listContent, createContent, deleteContent } from "../api/content";
 import { getMe } from "../api/auth";
 
@@ -11,6 +13,8 @@ export default function Library() {
   const [form, setForm] = useState({ title: "", type: "youtube", source: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "success" });
+  const [confirmDelete, setConfirmDelete] = useState(null); // item to delete
 
   useEffect(() => {
     getMe().then((r) => setUser(r.data));
@@ -33,14 +37,24 @@ export default function Library() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this item?")) return;
     await deleteContent(id);
     setItems(items.filter((i) => i.id !== id));
+    setConfirmDelete(null);
+    setToast({ message: "Item deleted", type: "success" });
   };
 
   return (
     <div>
       <Navbar displayName={user?.display_name} />
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "success" })} />
+      <ConfirmDialog
+        isOpen={!!confirmDelete}
+        title="Delete Content"
+        message={`Are you sure you want to delete "${confirmDelete?.title}"?`}
+        confirmText="Delete"
+        onConfirm={() => handleDelete(confirmDelete.id)}
+        onCancel={() => setConfirmDelete(null)}
+      />
       <div className="page-container">
         <h2>My Library</h2>
 
@@ -75,7 +89,7 @@ export default function Library() {
               </div>
               <div className="content-actions">
                 <button onClick={() => navigate(`/library/${item.id}`)}>Open</button>
-                <button onClick={() => handleDelete(item.id)} className="btn-danger">Delete</button>
+                <button onClick={() => setConfirmDelete(item)} className="btn-danger">Delete</button>
               </div>
             </div>
           ))}
