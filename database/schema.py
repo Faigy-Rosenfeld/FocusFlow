@@ -13,6 +13,7 @@ def generate_uuid():
 class ContentType(str, enum.Enum):
     youtube = "youtube"
     text = "text"
+    web = "web"
 
 
 # ================================

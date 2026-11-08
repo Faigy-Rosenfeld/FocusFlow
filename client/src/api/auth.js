@@ -4,3 +4,6 @@ export const register = (data) => api.post("/api/auth/register", data);
 export const login = (data) => api.post("/api/auth/login", data);
 export const logout = () => api.post("/api/auth/logout");
 export const getMe = () => api.get("/api/users/me");
+export const updateMe = (data) => api.patch("/api/users/me", data);
+export const changePassword = (data) => api.post("/api/users/me/password", data);
+export const deleteMe = () => api.delete("/api/users/me");

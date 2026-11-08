@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/content", tags=["content"])
 # ── Schemas ──────────────────────────────────────────────────
 class ContentCreateRequest(BaseModel):
     title: str
-    type: Literal["youtube", "text"]
+    type: Literal["youtube", "text", "web"]
     source: str
 
 
@@ -26,6 +26,8 @@ def create_content(
 ):
     if req.type == "youtube" and "youtube.com" not in req.source and "youtu.be" not in req.source:
         raise HTTPException(status_code=422, detail="Invalid YouTube URL")
+    if req.type == "web" and not req.source.startswith(("http://", "https://")):
+        raise HTTPException(status_code=422, detail="Invalid URL")
 
     item = models.ContentItem(
         user_id=current_user.id,

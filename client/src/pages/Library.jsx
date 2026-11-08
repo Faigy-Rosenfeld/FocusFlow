@@ -30,7 +30,8 @@ export default function Library() {
       setItems([...items, res.data]);
       setForm({ title: "", type: "youtube", source: "" });
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to add content");
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : detail?.[0]?.msg || "Failed to add content");
     } finally {
       setLoading(false);
     }
@@ -65,15 +66,15 @@ export default function Library() {
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
           </label>
           <label>Type
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, source: "" })}>
               <option value="youtube">YouTube</option>
               <option value="text">Text</option>
             </select>
           </label>
           <label>{form.type === "youtube" ? "YouTube URL" : "Text Content"}
-            {form.type === "youtube"
-              ? <input type="url" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} required />
-              : <textarea value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} rows={5} required />
+            {form.type === "text"
+              ? <textarea value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} rows={5} required />
+              : <input type="url" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} required />
             }
           </label>
           <button type="submit" disabled={loading}>{loading ? "Adding..." : "Add"}</button>

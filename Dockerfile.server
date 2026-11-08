@@ -1,6 +1,6 @@
 # ── Focus-Flow Backend ──────────────────────────────────────
 # Build context: repo root (both /server and /database packages are needed)
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11-slim
 
 WORKDIR /app
 
@@ -11,11 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies (cached layer)
 COPY server/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 
 # Copy source packages
 COPY server/ ./server/
 COPY database/ ./database/
+COPY server/focusflow-models/ ./server/focusflow-models/
 
 # Expose FastAPI port
 EXPOSE 8000

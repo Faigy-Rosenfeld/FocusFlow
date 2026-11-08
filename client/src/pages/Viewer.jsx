@@ -196,6 +196,13 @@ export default function Viewer() {
           <div className="content-area">
             {content.type === "youtube" ? (
               <div id="yt-player" style={{ width: "100%", aspectRatio: "16/9" }} />
+            ) : content.type === "web" ? (
+              <iframe
+                src={content.source}
+                title={content.title}
+                className="web-iframe"
+                sandbox="allow-scripts allow-same-origin allow-forms"
+              />
             ) : (
               <div className="text-content">{content.source}</div>
             )}

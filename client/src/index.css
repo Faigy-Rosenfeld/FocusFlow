@@ -592,3 +592,116 @@ body {
 }
 .confirm-ok-danger { background: #c0392b; }
 .confirm-ok-danger:hover { background: #a93226; }
+
+/* ── Profile Page ───────────────────────────────────────── */
+.navbar-profile-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+.navbar-profile-link:hover { color: var(--accent); }
+
+.profile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.profile-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.profile-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.profile-info-row:last-child { border-bottom: none; }
+.profile-label { color: var(--text-muted); font-size: 0.9rem; }
+.profile-value { color: var(--text); font-size: 0.9rem; font-weight: 500; }
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.profile-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+.profile-form input {
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: border-color 0.15s;
+}
+.profile-form input:focus { outline: none; border-color: var(--accent); }
+.profile-form button {
+  align-self: flex-start;
+  padding: 10px 22px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.profile-form button:hover:not(:disabled) { background: var(--accent-h); }
+.profile-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.profile-danger-zone { border-color: rgba(248,113,113,0.3); }
+.profile-danger-zone h3 { color: var(--error); }
+.profile-danger-zone p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+/* ── Web iframe ─────────────────────────────────────────── */
+.web-iframe {
+  width: 100%;
+  height: 600px;
+  border: none;
+  border-radius: 10px;
+  background: var(--surface2);
+}
+
+/* ── Password input with toggle ─────────────────────────── */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 44px !important;
+}
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text-muted);
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+.password-toggle:hover { color: var(--text); }

@@ -15,6 +15,7 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+server/.env
 
 # תיקיות התקנה של Node.js (במידה ותשתמשי בהם בהמשך)
 node_modules/

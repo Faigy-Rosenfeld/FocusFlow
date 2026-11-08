@@ -18,7 +18,7 @@ export default function Navbar({ displayName }) {
         <Link to="/history">History</Link>
       </div>
       <div className="navbar-user">
-        <span>{displayName}</span>
+        <Link to="/profile" className="navbar-profile-link">{displayName}</Link>
         <button onClick={handleLogout}>Sign Out</button>
       </div>
     </nav>
