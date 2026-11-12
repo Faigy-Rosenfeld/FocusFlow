@@ -44,7 +44,7 @@ async def get_questions(req: QuestionsRequest):
 
     prompt = build_prompt(req.title, req.transcript)
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(verify=False) as client:
         res = await client.post(
             f"{GEMINI_URL}?key={GEMINI_API_KEY}",
             headers={"Content-Type": "application/json"},

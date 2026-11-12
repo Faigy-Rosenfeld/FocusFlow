@@ -1,5 +1,3 @@
-const API_URL = import.meta.env.VITE_API_URL;
-
 const fetchTranscript = async (videoId) => {
   try {
     const res = await fetch(
@@ -22,7 +20,7 @@ export const fetchQuestions = async (videoId, title) => {
   const transcript = await fetchTranscript(videoId);
 
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/api/gemini/questions`, {
+  const res = await fetch("/api/gemini/questions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

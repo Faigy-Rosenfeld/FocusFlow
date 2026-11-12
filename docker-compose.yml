@@ -23,7 +23,9 @@ services:
 
   # ── FastAPI Backend ────────────────────────────────────────
   backend:
-    image: faigyrosenfeld/focusflow-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.server
     restart: unless-stopped
     env_file: server/.env
     environment:
@@ -37,7 +39,11 @@ services:
 
   # ── React Frontend ─────────────────────────────────────────
   frontend:
-    image: faigyrosenfeld/focusflow-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+      args:
+        VITE_API_URL: http://localhost:8000
     restart: unless-stopped
     ports:
       - "3000:80"   # פורט 3000 בחוץ → 80 בתוך הקונטיינר (nginx)
