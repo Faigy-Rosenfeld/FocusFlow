@@ -225,7 +225,16 @@ export default function Viewer() {
                   <div className="camera-consent">
                     <p>Enable your camera to measure focus. Your video never leaves your device.</p>
                     <button onClick={handleCameraConsent} className="btn-primary">Enable Camera</button>
-                    <button onClick={handleEndSession} className="btn-secondary">Continue Without Camera</button>
+                    <button onClick={() => setCameraConsent("skip")} className="btn-secondary">Continue Without Camera</button>
+                  </div>
+                ) : cameraConsent === "skip" ? (
+                  <div className="session-info">
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                      Watching without focus tracking. 
+                      <button onClick={handleCameraConsent} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", padding: "0 4px" }}>
+                        Enable camera
+                      </button>
+                    </p>
                   </div>
                 ) : (
                   <>

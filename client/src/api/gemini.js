@@ -16,22 +16,41 @@ const fetchTranscript = async (videoId) => {
   }
 };
 
-export const fetchQuestions = async (videoId, title) => {
+export const fetchQuestions = async (videoId, title, retries = 3) => {
   const transcript = await fetchTranscript(videoId);
 
   const token = localStorage.getItem("token");
-  const res = await fetch("/api/gemini/questions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: JSON.stringify({ video_id: videoId, title, transcript }),
-    signal: AbortSignal.timeout(90000),
-  });
 
-  if (!res.ok) return [];
-  return res.json();
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch("/api/gemini/questions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({ video_id: videoId, title, transcript }),
+        signal: AbortSignal.timeout(90000),
+      });
+
+      if (res.ok) return res.json();
+
+      // 503 = שרת Google עמוס — ממתינים ומנסים שוב
+      if (res.status === 503 && attempt < retries) {
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+        continue;
+      }
+
+      return [];
+    } catch {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+        continue;
+      }
+      return [];
+    }
+  }
+  return [];
 };
 
 export const getQuestionForPosition = (questions, position) => {
