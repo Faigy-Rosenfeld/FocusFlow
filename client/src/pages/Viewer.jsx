@@ -25,6 +25,7 @@ export default function Viewer() {
   const [cameraConsent, setCameraConsent] = useState(false);
   const [questions, setQuestions] = useState([]);
   const questionsRef = useRef([]);
+  const askedQuestionsRef = useRef(new Set()); // שאלות שכבר נשאלו
   const [activeQuestion, setActiveQuestion] = useState(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [alert, setAlert] = useState("");
@@ -47,6 +48,14 @@ export default function Viewer() {
     getContent(id)
       .then((r) => setContent(r.data))
       .catch(() => setPageError("Content not found"));
+
+    // cleanup: if user navigates away while a session is open, end it silently
+    return () => {
+      if (sessionRef.current && !sessionRef.current.ended_at) {
+        endSession(sessionRef.current.id).catch(() => {});
+      }
+      stopCamera();
+    };
   }, [id]);
 
   // load YouTube IFrame API and create player
@@ -105,6 +114,8 @@ export default function Viewer() {
     await startCamera(handleFrameWindow);
   };
 
+  const lowFocusSinceRef = useRef(null); // cooldown tracker
+
   const handleFrameWindow = async (frames) => {
     if (!sessionRef.current || pausedRef.current) return;
 
@@ -116,18 +127,32 @@ export default function Viewer() {
     await addReading(sessionRef.current.id, positionRef.current, currentScore);
 
     if (currentScore < LOW_FOCUS_THRESHOLD) {
+      const now = Date.now();
+      if (!lowFocusSinceRef.current) {
+        lowFocusSinceRef.current = now;
+        return;
+      }
+      if (now - lowFocusSinceRef.current < 10000) return;
+
+      lowFocusSinceRef.current = null;
       const pos = playerRef.current?.getCurrentTime?.() ?? positionRef.current;
       positionRef.current = pos;
-      const q = getQuestionForPosition(questionsRef.current, pos);
+
+      const unasked = questionsRef.current.filter(q => !askedQuestionsRef.current.has(q.time));
+      if (unasked.length === 0) askedQuestionsRef.current.clear();
+      const availableQuestions = unasked.length > 0 ? unasked : questionsRef.current;
+      const q = getQuestionForPosition(availableQuestions, pos);
       if (!q) {
-        // אין שאלה זמינה — עוצרים ומחזירים 10 שניות
         handleNoQuestion();
         return;
       }
+      askedQuestionsRef.current.add(q.time);
       lowFocusStartRef.current = pos;
       pausedRef.current = true;
       sendPlayerCommand("pauseVideo");
       setActiveQuestion(q);
+    } else {
+      lowFocusSinceRef.current = null;
     }
   };
 
@@ -160,7 +185,10 @@ export default function Viewer() {
 
   const handleEndSession = async () => {
     stopCamera();
-    if (session) await endSession(session.id);
+    if (sessionRef.current) {
+      await endSession(sessionRef.current.id);
+      sessionRef.current = { ...sessionRef.current, ended_at: true };
+    }
     navigate("/history");
   };
 
@@ -196,13 +224,6 @@ export default function Viewer() {
           <div className="content-area">
             {content.type === "youtube" ? (
               <div id="yt-player" style={{ width: "100%", aspectRatio: "16/9" }} />
-            ) : content.type === "web" ? (
-              <iframe
-                src={content.source}
-                title={content.title}
-                className="web-iframe"
-                sandbox="allow-scripts allow-same-origin allow-forms"
-              />
             ) : (
               <div className="text-content">{content.source}</div>
             )}

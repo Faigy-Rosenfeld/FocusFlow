@@ -24,6 +24,7 @@ export default function History() {
           {sessions.map((s) => (
             <div key={s.id} className="content-card" onClick={() => navigate(`/history/${s.id}`)} style={{ cursor: "pointer" }}>
               <div>
+                <h4>{s.content_title || "Unknown Content"}</h4>
                 <p>{new Date(s.started_at).toLocaleString()}</p>
                 <p>Status: {s.ended_at ? "Completed" : "In Progress"}</p>
               </div>

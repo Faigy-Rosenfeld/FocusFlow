@@ -107,6 +107,7 @@ def list_sessions(
         result.append({
             "id": s.id,
             "content_id": s.content_id,
+            "content_title": s.content_item.title if s.content_item else None,
             "started_at": s.started_at.isoformat(),
             "ended_at": s.ended_at.isoformat() if s.ended_at else None,
             "average_score": round(avg, 3),

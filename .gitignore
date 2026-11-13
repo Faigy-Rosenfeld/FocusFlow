@@ -29,3 +29,7 @@ Thumbs.db
 
 # תיקיית הוראות מקומית
 INSTRUCTIONS/
+
+# קבצי עזר זמניים
+pdf_extracted_text.txt
+extract_pdfs.py
