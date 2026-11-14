@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import Navbar from "../components/Navbar";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import QuizModal from "../components/QuizModal";
 import { getContent } from "../api/content";
 import { getMe } from "../api/auth";
@@ -10,6 +9,32 @@ import { useModel } from "../hooks/useModel";
 import { fetchQuestions, getQuestionForPosition } from "../api/gemini";
 
 const LOW_FOCUS_THRESHOLD = 0.4;
+
+function scoreClass(s) {
+  if (s === null) return "none";
+  if (s >= 0.7) return "good";
+  if (s >= 0.4) return "mid";
+  return "low";
+}
+function scoreLabel(s, facesDetected) {
+  if (s === null) return "ממתין למדידה...";
+  if (!facesDetected) return "אין מדידה";
+  if (s >= 0.7) return "קשוב";
+  if (s >= 0.4) return "קשב בינוני";
+  return "קשב נמוך";
+}
+
+function useTimer(active) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const t = setInterval(() => setSeconds(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [active]);
+  const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+  const ss = String(seconds % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
 
 export default function Viewer() {
   const { id } = useParams();
@@ -23,12 +48,16 @@ export default function Viewer() {
   const [score, setScore] = useState(null);
   const [pageError, setPageError] = useState("");
   const [cameraConsent, setCameraConsent] = useState(false);
-  const [questions, setQuestions] = useState([]);
   const questionsRef = useRef([]);
-  const askedQuestionsRef = useRef(new Set()); // שאלות שכבר נשאלו
+  const askedQuestionsRef = useRef(new Set());
   const [activeQuestion, setActiveQuestion] = useState(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
-  const [alert, setAlert] = useState("");
+  const [banner, setBanner] = useState(null); // null | "low-focus" | "no-face"
+  const [alertMsg, setAlertMsg] = useState("");
+
+  // session stats
+  const [readings, setReadings] = useState([]);
+  const [alertCount, setAlertCount] = useState(0);
 
   const { videoRef, ready: cameraReady, active: cameraActive, facesDetected, error: cameraError, startCamera, stopCamera } = useCamera();
   const { ready: modelReady, runInference } = useModel();
@@ -37,6 +66,9 @@ export default function Viewer() {
   const positionRef = useRef(0);
   const pausedRef = useRef(false);
   const lowFocusStartRef = useRef(0);
+  const lowFocusSinceRef = useRef(null);
+
+  const timer = useTimer(!!session);
 
   const getVideoId = (url) => {
     const match = url?.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
@@ -47,9 +79,8 @@ export default function Viewer() {
     getMe().then((r) => setUser(r.data));
     getContent(id)
       .then((r) => setContent(r.data))
-      .catch(() => setPageError("Content not found"));
+      .catch(() => setPageError("התוכן לא נמצא."));
 
-    // cleanup: if user navigates away while a session is open, end it silently
     return () => {
       if (sessionRef.current && !sessionRef.current.ended_at) {
         endSession(sessionRef.current.id).catch(() => {});
@@ -58,7 +89,14 @@ export default function Viewer() {
     };
   }, [id]);
 
-  // load YouTube IFrame API and create player
+  // show no-face banner
+  useEffect(() => {
+    if (!cameraActive) return;
+    if (!facesDetected && banner !== "low-focus") setBanner("no-face");
+    if (facesDetected && banner === "no-face") setBanner(null);
+  }, [facesDetected, cameraActive]);
+
+  // YouTube player
   useEffect(() => {
     if (!content || content.type !== "youtube") return;
     const videoId = getVideoId(content.source);
@@ -71,9 +109,7 @@ export default function Viewer() {
         width: "100%",
         height: "100%",
         playerVars: { enablejsapi: 1, origin: window.location.origin },
-        events: {
-          onReady: (e) => { playerRef.current = e.target; },
-        },
+        events: { onReady: (e) => { playerRef.current = e.target; } },
       });
     };
 
@@ -85,25 +121,20 @@ export default function Viewer() {
       document.head.appendChild(tag);
       window.onYouTubeIframeAPIReady = initPlayer;
     }
-
     return () => { ytPlayerRef.current?.destroy?.(); };
   }, [content]);
 
-  const sendPlayerCommand = (func, args = []) => {
-    playerRef.current?.[func]?.(...args);
-  };
+  const sendPlayerCommand = (func, args = []) => playerRef.current?.[func]?.(...args);
 
   const handleStartSession = async () => {
     const res = await createSession(id);
     setSession(res.data);
     sessionRef.current = res.data;
 
-    // fetch questions in background
     if (content?.type === "youtube") {
       setLoadingQuestions(true);
       const videoId = getVideoId(content.source);
       const qs = await fetchQuestions(videoId, content.title).catch(() => []);
-      setQuestions(qs);
       questionsRef.current = qs;
       setLoadingQuestions(false);
     }
@@ -114,8 +145,6 @@ export default function Viewer() {
     await startCamera(handleFrameWindow);
   };
 
-  const lowFocusSinceRef = useRef(null); // cooldown tracker
-
   const handleFrameWindow = async (frames) => {
     if (!sessionRef.current || pausedRef.current) return;
 
@@ -124,35 +153,43 @@ export default function Viewer() {
 
     const currentScore = parseFloat(result.toFixed(3));
     setScore(currentScore);
-    await addReading(sessionRef.current.id, positionRef.current, currentScore);
+
+    const currentPos = playerRef.current?.getCurrentTime?.() ?? positionRef.current;
+    positionRef.current = currentPos;
+
+    const r = { position: currentPos, score: currentScore, created_at: new Date().toISOString() };
+    setReadings(prev => [...prev, r]);
+    await addReading(sessionRef.current.id, currentPos, currentScore);
 
     if (currentScore < LOW_FOCUS_THRESHOLD) {
       const now = Date.now();
       if (!lowFocusSinceRef.current) {
         lowFocusSinceRef.current = now;
+        lowFocusStartRef.current = currentPos;
         return;
       }
       if (now - lowFocusSinceRef.current < 10000) return;
 
       lowFocusSinceRef.current = null;
-      const pos = playerRef.current?.getCurrentTime?.() ?? positionRef.current;
-      positionRef.current = pos;
+      setBanner("low-focus");
+      setAlertCount(c => c + 1);
 
       const unasked = questionsRef.current.filter(q => !askedQuestionsRef.current.has(q.time));
       if (unasked.length === 0) askedQuestionsRef.current.clear();
-      const availableQuestions = unasked.length > 0 ? unasked : questionsRef.current;
-      const q = getQuestionForPosition(availableQuestions, pos);
+      const available = unasked.length > 0 ? unasked : questionsRef.current;
+      const q = getQuestionForPosition(available, currentPos);
+
       if (!q) {
         handleNoQuestion();
         return;
       }
       askedQuestionsRef.current.add(q.time);
-      lowFocusStartRef.current = pos;
       pausedRef.current = true;
       sendPlayerCommand("pauseVideo");
       setActiveQuestion(q);
     } else {
       lowFocusSinceRef.current = null;
+      if (banner === "low-focus") setBanner(null);
     }
   };
 
@@ -161,26 +198,35 @@ export default function Viewer() {
     sendPlayerCommand("seekTo", [rewindTo, true]);
     sendPlayerCommand("playVideo");
     pausedRef.current = false;
-    setAlert("Low focus detected! Rewinding 10 seconds...");
-    setTimeout(() => setAlert(""), 3000);
+    setBanner(null);
   };
 
   const handleCorrectAnswer = () => {
     setActiveQuestion(null);
-    sendPlayerCommand("playVideo");
     pausedRef.current = false;
-    setAlert("Correct! Keep going 🎉");
-    setTimeout(() => setAlert(""), 2000);
+    setBanner(null);
+    sendPlayerCommand("playVideo");
+    setAlertMsg("תשובה נכונה! ממשיכים.");
+    setTimeout(() => setAlertMsg(""), 2500);
   };
 
   const handleWrongAnswer = () => {
     setActiveQuestion(null);
-    const rewindTo = Math.max(0, lowFocusStartRef.current - 10);
+    pausedRef.current = false;
+    setBanner(null);
+    const rewindTo = Math.max(0, lowFocusStartRef.current);
+    sendPlayerCommand("seekTo", [rewindTo, true]);
+    sendPlayerCommand("playVideo");
+    setAlertMsg("חוזרים לנקודה שבה ירד הקשב.");
+    setTimeout(() => setAlertMsg(""), 3000);
+  };
+
+  const handleRewindToMissed = () => {
+    const rewindTo = Math.max(0, lowFocusStartRef.current);
     sendPlayerCommand("seekTo", [rewindTo, true]);
     sendPlayerCommand("playVideo");
     pausedRef.current = false;
-    setAlert("Not quite — rewinding to review that section.");
-    setTimeout(() => setAlert(""), 3000);
+    setBanner(null);
   };
 
   const handleEndSession = async () => {
@@ -192,105 +238,273 @@ export default function Viewer() {
     navigate("/history");
   };
 
-  const getScoreColor = (s) => s >= 0.7 ? "#4caf50" : s >= 0.4 ? "#ff9800" : "#e05555";
-  const getScoreLabel = (s) => s >= 0.7 ? "Focused" : s >= 0.4 ? "Moderate" : "Low Focus";
+  // average score from local readings
+  const avgScore = readings.length
+    ? readings.reduce((sum, r) => sum + r.score, 0) / readings.length
+    : null;
+
+  const cls = scoreClass(score);
+  const thresholdPct = LOW_FOCUS_THRESHOLD * 100;
 
   if (pageError) return (
-    <div>
-      <Navbar displayName={user?.display_name} />
-      <div className="page-container"><p className="error">{pageError}</p></div>
+    <div className="app-shell" style={{ display: "block" }}>
+      <div className="page-container"><p className="error-text">{pageError}</p></div>
     </div>
   );
-
-  if (!content) return <div className="loading">Loading...</div>;
+  if (!content) return <div className="loading">טוען...</div>;
 
   return (
-    <div>
-      <Navbar displayName={user?.display_name} />
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "var(--bg)" }}>
+      <QuizModal question={activeQuestion} onCorrect={handleCorrectAnswer} onWrong={handleWrongAnswer} />
 
-      <QuizModal
-        question={activeQuestion}
-        onCorrect={handleCorrectAnswer}
-        onWrong={handleWrongAnswer}
-      />
+      {/* Top bar */}
+      <div className="viewer-top-bar">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <nav className="breadcrumb" style={{ marginBottom: 3 }}>
+            <Link to="/library">הספרייה שלי</Link>
+            <span className="breadcrumb-sep">/</span>
+            <span>{content.title}</span>
+          </nav>
+          <div className="viewer-title">{content.title}</div>
+        </div>
 
-      <div className="page-container">
-        <button onClick={() => navigate("/library")} className="back-btn">← Back to Library</button>
-        <h2>{content.title}</h2>
-
-        {alert && <div className={`alert-banner ${alert.startsWith("Correct") ? "alert-success" : ""}`}>{alert}</div>}
-
-        <div className="viewer-layout">
-          <div className="content-area">
-            {content.type === "youtube" ? (
-              <div id="yt-player" style={{ width: "100%", aspectRatio: "16/9" }} />
-            ) : (
-              <div className="text-content">{content.source}</div>
-            )}
+        {cameraActive && (
+          <div className="camera-active-tag">
+            <span className="camera-dot" />
+            המצלמה פעילה
           </div>
+        )}
 
-          <div className="session-panel">
-            {!session ? (
-              <div className="session-start">
-                <h3>Ready to focus?</h3>
-                <p>Start a session to measure your focus level in real time.</p>
-                <button onClick={handleStartSession} className="btn-primary">Start Session</button>
-              </div>
-            ) : (
-              <div className="session-active">
-                <h3>Session Active</h3>
+        {session && (
+          <div className="session-timer">{timer}</div>
+        )}
 
-                {loadingQuestions && <p className="score-waiting">Preparing questions...</p>}
+        {session && (
+          <button className="btn btn-danger btn-sm" onClick={handleEndSession}>
+            סיים סשן
+          </button>
+        )}
+      </div>
 
-                {!cameraConsent ? (
-                  <div className="camera-consent">
-                    <p>Enable your camera to measure focus. Your video never leaves your device.</p>
-                    <button onClick={handleCameraConsent} className="btn-primary">Enable Camera</button>
-                    <button onClick={() => setCameraConsent("skip")} className="btn-secondary">Continue Without Camera</button>
-                  </div>
-                ) : cameraConsent === "skip" ? (
-                  <div className="session-info">
-                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                      Watching without focus tracking. 
-                      <button onClick={handleCameraConsent} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", padding: "0 4px" }}>
-                        Enable camera
-                      </button>
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="camera-preview">
-                      <video ref={videoRef} muted playsInline className="camera-video" />
-                      {!facesDetected && cameraActive && (
-                        <div className="no-face-overlay">No face detected</div>
-                      )}
-                    </div>
-
-                    {cameraError && <p className="error">{cameraError}</p>}
-
-                    {score !== null ? (
-                      <div className="score-display">
-                        <span className="score-label">Focus Score</span>
-                        <span className="score-value" style={{ color: getScoreColor(score) }}>
-                          {(score * 100).toFixed(0)}%
-                        </span>
-                        <span className="score-status" style={{ color: getScoreColor(score) }}>
-                          {getScoreLabel(score)}
-                        </span>
-                      </div>
-                    ) : (
-                      <p className="score-waiting">
-                        {!modelReady ? "Loading model..." : "Measuring focus... (~10s)"}
-                      </p>
-                    )}
-                  </>
-                )}
-
-                <button onClick={handleEndSession} className="btn-danger">End Session</button>
-              </div>
-            )}
+      {/* Banners */}
+      {banner === "low-focus" && (
+        <div className="banner banner-low-focus" style={{ margin: "0 36px" }}>
+          <div className="banner-text">
+            <strong>הקשב ירד בעשר השניות האחרונות</strong>
+            אפשר לחזור לקטע שהחמצת או לקחת הפסקה קצרה.
+          </div>
+          <div className="banner-actions">
+            <button className="btn btn-secondary btn-sm" onClick={handleRewindToMissed}>
+              חזרה לקטע שהחמצת
+            </button>
           </div>
         </div>
+      )}
+
+      {banner === "no-face" && (
+        <div className="banner banner-no-face" style={{ margin: "0 36px" }}>
+          <strong>לא זוהו פנים.</strong>
+          ודאי שהפנים מופיעות בתמונה ושיש מספיק אור. המדידה תמשיך אוטומטית.
+        </div>
+      )}
+
+      {alertMsg && (
+        <div className="banner" style={{ margin: "0 36px", background: "#edf7f2", borderColor: "#a8d9be", color: "var(--good)" }}>
+          {alertMsg}
+        </div>
+      )}
+
+      {/* Body */}
+      <div className="viewer-body">
+        {/* Content */}
+        <div className="viewer-content-col">
+          {content.type === "youtube" ? (
+            <div id="yt-player" style={{ width: "100%", aspectRatio: "16/9", borderRadius: 4, overflow: "hidden", background: "#000" }} />
+          ) : (
+            <div className="panel" style={{ lineHeight: 1.8, whiteSpace: "pre-wrap", maxHeight: 500, overflowY: "auto", fontSize: 15 }}>
+              {content.source}
+            </div>
+          )}
+
+          {/* Session start (overlaid below content if no session) */}
+          {!session && (
+            <div className="panel session-start-panel">
+              <p className="panel-label">סשן חדש</p>
+              <p>לחץ על "התחל סשן" כדי למדוד את רמת הקשב שלך בזמן אמת.</p>
+              <button className="btn btn-primary" onClick={handleStartSession}>
+                התחל סשן
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Side column */}
+        {session && (
+          <div className="viewer-side-col">
+            {/* Camera panel */}
+            <div className="panel camera-panel">
+              <p className="panel-label">
+                המצלמה
+                {cameraActive && <span style={{ marginRight: 8, color: "var(--good)", fontWeight: 400 }}>מעובד בדפדפן בלבד</span>}
+              </p>
+
+              {!cameraConsent ? (
+                <div className="camera-consent-panel">
+                  <p>אפשר את המצלמה כדי למדוד את רמת הקשב. הסרטון אינו יוצא מהמכשיר שלך.</p>
+                  <div className="camera-consent-actions">
+                    <button className="btn btn-primary btn-sm" onClick={handleCameraConsent}>
+                      אפשר מצלמה
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setCameraConsent("skip")}>
+                      דלג
+                    </button>
+                  </div>
+                </div>
+              ) : cameraConsent === "skip" ? (
+                <div>
+                  <p style={{ fontSize: 13, color: "var(--muted)" }}>
+                    צופה ללא מדידת קשב.{" "}
+                    <button onClick={handleCameraConsent} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 13 }}>
+                      אפשר מצלמה
+                    </button>
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <video ref={videoRef} muted playsInline style={{ width: "100%", display: "block", borderRadius: 4, background: "#000" }} />
+                  <div className="camera-status">
+                    <span>{facesDetected ? "פנים זוהו" : "לא זוהו פנים"}</span>
+                    <span>10 פריימים לשנייה</span>
+                  </div>
+                  {cameraError && <p className="error-text" style={{ marginTop: 6 }}>{cameraError}</p>}
+                </>
+              )}
+            </div>
+
+            {/* Focus score panel */}
+            <div className="panel score-panel">
+              <p className="panel-label">רמת הקשב — חלון של 10 שניות</p>
+
+              {score !== null ? (
+                <>
+                  <div className={`score-number ${cls}`}>
+                    {(score * 100).toFixed(0)}
+                    <span style={{ fontSize: 20, fontWeight: 400, color: "var(--muted)", marginRight: 2 }}>%</span>
+                  </div>
+                  <div className="score-label-text">{scoreLabel(score, facesDetected)}</div>
+
+                  {/* Scale */}
+                  <div style={{ marginTop: 14, position: "relative" }}>
+                    <div className="score-scale">
+                      <div
+                        className={`score-scale-fill ${cls}`}
+                        style={{ width: `${Math.min(score * 100, 100)}%` }}
+                      />
+                      <div
+                        className="score-scale-threshold"
+                        style={{ right: `${thresholdPct}%` }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "var(--muted)" }}>
+                      <span>0</span>
+                      <span style={{ color: "var(--low)", position: "absolute", right: `${thresholdPct}%`, transform: "translateX(50%)", marginTop: 10 }}>
+                        סף 0.4
+                      </span>
+                      <span>1</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: "var(--muted)", fontSize: 13 }}>
+                  {!modelReady ? "טוען מודל..." : !cameraConsent ? "הפעל מצלמה למדידה" : "מחשב... (~10 שניות)"}
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className="score-stats">
+                <div className="stat-item">
+                  <span className="stat-label">ממוצע בסשן</span>
+                  <span className="stat-value">
+                    {avgScore !== null ? `${(avgScore * 100).toFixed(0)}%` : "—"}
+                  </span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">התראות</span>
+                  <span className="stat-value">{alertCount}</span>
+                </div>
+              </div>
+
+              {loadingQuestions && (
+                <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>מכין שאלות...</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Focus graph (shown when session active + readings exist) */}
+      {session && readings.length > 1 && (
+        <FocusGraph readings={readings} threshold={LOW_FOCUS_THRESHOLD} />
+      )}
+    </div>
+  );
+}
+
+/* ── Inline SVG focus graph ───────────────────────────────── */
+function FocusGraph({ readings, threshold }) {
+  const W = 800, H = 100;
+  const pad = { t: 10, b: 20, l: 30, r: 10 };
+  const iW = W - pad.l - pad.r;
+  const iH = H - pad.t - pad.b;
+
+  const pts = readings.map((r, i) => ({
+    x: pad.l + (i / (readings.length - 1)) * iW,
+    y: pad.t + (1 - r.score) * iH,
+    low: r.score < threshold,
+  }));
+
+  const linePath = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
+  const thY = pad.t + (1 - threshold) * iH;
+
+  return (
+    <div className="panel focus-graph-panel">
+      <p className="panel-label">קשב לאורך הסשן</p>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="focus-graph-canvas"
+        style={{ direction: "ltr" }}
+        preserveAspectRatio="none"
+      >
+        {/* threshold shade */}
+        <rect
+          x={pad.l} y={thY}
+          width={iW} height={pad.t + iH - thY}
+          fill="rgba(194,65,12,0.06)"
+        />
+        {/* threshold dashed line */}
+        <line
+          x1={pad.l} y1={thY} x2={pad.l + iW} y2={thY}
+          stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 3"
+        />
+        {/* score line */}
+        <path d={linePath} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
+        {/* low-focus dots */}
+        {pts.filter(p => p.low).map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="3" fill="#f59e0b" />
+        ))}
+        {/* Y axis labels */}
+        <text x={pad.l - 4} y={pad.t + 4} fontSize="9" fill="var(--muted)" textAnchor="end">1</text>
+        <text x={pad.l - 4} y={pad.t + iH + 4} fontSize="9" fill="var(--muted)" textAnchor="end">0</text>
+      </svg>
+      <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ width: 20, height: 2, background: "var(--accent)", display: "inline-block" }} />
+          ציון קשב
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ width: 20, height: 2, background: "#f59e0b", display: "inline-block", borderTop: "1px dashed #f59e0b" }} />
+          סף התראה
+        </span>
       </div>
     </div>
   );

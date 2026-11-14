@@ -6,6 +6,7 @@ import Viewer from "./pages/Viewer";
 import History from "./pages/History";
 import SessionDetail from "./pages/SessionDetail";
 import Profile from "./pages/Profile";
+import "./App.css";
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");

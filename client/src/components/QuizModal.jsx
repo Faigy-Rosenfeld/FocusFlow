@@ -12,12 +12,12 @@ export default function QuizModal({ question, onCorrect, onWrong }) {
   return (
     <div className="quiz-overlay">
       <div className="quiz-modal">
-        <h3>Focus Check</h3>
+        <span className="quiz-modal-label">בדיקת ריכוז</span>
         <p className="quiz-question">{question.question}</p>
         <div className="quiz-options">
           {question.options.map((opt, i) => (
             <button key={i} onClick={() => handleAnswer(i)} className="quiz-option">
-              <span className="quiz-option-letter">{String.fromCharCode(65 + i)}</span>
+              <span className="quiz-option-letter">{String.fromCharCode(1488 + i)}</span>
               {opt}
             </button>
           ))}

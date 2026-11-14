@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
-const FRAME_RATE = 10; // frames per second
+const FRAME_RATE = 10;        // frames per second captured
+const WINDOW_SIZE = 100;      // frames the model expects
+const SLIDE_EVERY = 10;       // call onWindow every N new frames (= every 1 second)
 
 export function useCamera() {
   const videoRef = useRef(null);
@@ -13,8 +15,9 @@ export function useCamera() {
   const [facesDetected, setFacesDetected] = useState(false);
   const [error, setError] = useState("");
 
-  const frameBufferRef = useRef([]); // stores landmark arrays
-  const onFrameCallback = useRef(null); // called every 100 frames
+  const frameBufferRef = useRef([]);   // rolling buffer, keeps last WINDOW_SIZE frames
+  const newFramesRef = useRef(0);      // counter of frames added since last callback
+  const onFrameCallback = useRef(null);
 
   // load mediapipe
   useEffect(() => {
@@ -65,6 +68,7 @@ export function useCamera() {
     }
     setActive(false);
     frameBufferRef.current = [];
+    newFramesRef.current = 0;
   }, []);
 
   const startProcessing = () => {
@@ -86,17 +90,27 @@ export function useCamera() {
       // flatten [478, 3]
       const flat = new Float32Array(478 * 3);
       for (let i = 0; i < 478; i++) {
-        flat[i * 3] = landmarks[i].x;
+        flat[i * 3]     = landmarks[i].x;
         flat[i * 3 + 1] = landmarks[i].y;
         flat[i * 3 + 2] = landmarks[i].z;
       }
 
+      // rolling buffer — keep only the last WINDOW_SIZE frames
       frameBufferRef.current.push(flat);
+      if (frameBufferRef.current.length > WINDOW_SIZE) {
+        frameBufferRef.current.shift();
+      }
 
-      // when we have 100 frames → send window
-      if (frameBufferRef.current.length >= 100) {
-        const window = frameBufferRef.current.splice(0, 100);
-        onFrameCallback.current?.(window);
+      newFramesRef.current += 1;
+
+      // fire callback every SLIDE_EVERY new frames AND once we have a full window
+      if (
+        newFramesRef.current >= SLIDE_EVERY &&
+        frameBufferRef.current.length === WINDOW_SIZE
+      ) {
+        newFramesRef.current = 0;
+        // pass a copy of the current 100-frame window
+        onFrameCallback.current?.([...frameBufferRef.current]);
       }
     }, 1000 / FRAME_RATE);
   };

@@ -6,94 +6,96 @@ import Toast from "../components/Toast";
 export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [toast, setToast] = useState({ message: "", type: "error" });
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const showToast = (message, type = "error") => setToast({ message, type });
-  const clearToast = () => setToast({ message: "", type: "error" });
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    clearToast();
+    setError("");
     setLoading(true);
     try {
       const res = await login(form);
       localStorage.setItem("token", res.data.access_token);
-      showToast("Welcome back!", "success");
-      setTimeout(() => navigate("/library"), 800);
+      navigate("/library");
     } catch (err) {
-      const msg = err.response?.data?.detail || "Invalid email or password";
-      showToast(msg, "error");
+      setError(err.response?.data?.detail || "אימייל או סיסמה שגויים. נסי שוב.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <Toast message={toast.message} type={toast.type} onClose={clearToast} />
+    <div className="auth-page">
+      <div className="auth-panel">
+        <div className="auth-logo">
+          <span className="auth-logo-name">FocusFlow</span>
+          <span className="auth-logo-sub">למד בריכוז, התקדם מהר יותר</span>
+        </div>
 
-      <div className="auth-brand">
-        <span className="auth-brand-icon">◎</span>
-        <h1>FocusFlow</h1>
-        <p>Stay focused, learn better</p>
-      </div>
+        <h2 className="auth-title">כניסה</h2>
 
-      <form onSubmit={handleSubmit} className="auth-form">
-        <h2>Sign In</h2>
-
-        <label>Email
-          <input
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="you@example.com"
-            required
-            autoComplete="email"
-          />
-        </label>
-
-        <label>Password
-          <div className="input-password-wrapper">
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="field">
+            <label className="field-label" htmlFor="email">אימייל</label>
             <input
-              type={showPassword ? "text" : "password"}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="••••••••"
+              id="email"
+              className="field-input"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="you@example.com"
               required
-              autoComplete="current-password"
+              autoComplete="email"
             />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? (
-                // Eye-off
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              ) : (
-                // Eye
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              )}
-            </button>
           </div>
-        </label>
 
-        <button type="submit" disabled={loading} className="btn-submit">
-          {loading ? <span className="btn-spinner" /> : "Sign In"}
-        </button>
+          <div className="field">
+            <label className="field-label" htmlFor="password">סיסמה</label>
+            <div className="pw-wrapper">
+              <input
+                id="password"
+                className="field-input"
+                type={showPassword ? "text" : "password"}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="pw-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "הסתר סיסמה" : "הצג סיסמה"}
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+              </button>
+            </div>
+            {error && <span className="field-error">{error}</span>}
+          </div>
 
-        <p>Don't have an account? <Link to="/register">Create one</Link></p>
-      </form>
+          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: "100%", marginTop: 4 }}>
+            {loading ? <span className="btn-spinner" /> : "כניסה"}
+          </button>
+        </form>
+
+        <p className="auth-footer">
+          אין לך חשבון?{" "}
+          <Link to="/register">הירשמי</Link>
+        </p>
+      </div>
     </div>
   );
 }

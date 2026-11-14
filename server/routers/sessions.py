@@ -96,10 +96,20 @@ def end_session(
 
 @router.get("")
 def list_sessions(
+    skip: int = 0,
+    limit: int = 10,
     db: DBSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    sessions = db.query(models.Session).filter(models.Session.user_id == current_user.id).all()
+    total = db.query(models.Session).filter(models.Session.user_id == current_user.id).count()
+    sessions = (
+        db.query(models.Session)
+        .filter(models.Session.user_id == current_user.id)
+        .order_by(models.Session.started_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     result = []
     for s in sessions:
         scores = [r.score for r in s.readings]
@@ -112,7 +122,7 @@ def list_sessions(
             "ended_at": s.ended_at.isoformat() if s.ended_at else None,
             "average_score": round(avg, 3),
         })
-    return result
+    return {"items": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/{session_id}")
