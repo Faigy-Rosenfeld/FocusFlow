@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, memo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import QuizModal from "../components/QuizModal";
+import Toast from "../components/Toast";
 import { getContent } from "../api/content";
 import { getMe } from "../api/auth";
 import { createSession, endSession, addReading } from "../api/sessions";
@@ -53,7 +54,14 @@ export default function Viewer() {
   const [activeQuestion, setActiveQuestion] = useState(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [banner, setBanner] = useState(null); // null | "low-focus" | "no-face"
-  const [alertMsg, setAlertMsg] = useState("");
+  const [alertMsg, setAlertMsg] = useState({ message: "", type: "success" });
+  const bannerRef = useRef(null); // mirror of banner for use inside async callbacks
+
+  // keep bannerRef in sync
+  const updateBanner = (val) => {
+    bannerRef.current = val;
+    setBanner(val);
+  };
 
   // session stats
   const [readings, setReadings] = useState([]);
@@ -66,6 +74,7 @@ export default function Viewer() {
   const positionRef = useRef(0);
   const pausedRef = useRef(false);
   const lowFocusStartRef = useRef(0);
+  const isInferringRef = useRef(false); // prevents concurrent handleFrameWindow calls
   const lowFocusSinceRef = useRef(null);
 
   const timer = useTimer(!!session);
@@ -89,11 +98,11 @@ export default function Viewer() {
     };
   }, [id]);
 
-  // show no-face banner
+  // show no-face banner — uses bannerRef to avoid stale closure
   useEffect(() => {
     if (!cameraActive) return;
-    if (!facesDetected && banner !== "low-focus") setBanner("no-face");
-    if (facesDetected && banner === "no-face") setBanner(null);
+    if (!facesDetected && bannerRef.current !== "low-focus") updateBanner("no-face");
+    if (facesDetected && bannerRef.current === "no-face") updateBanner(null);
   }, [facesDetected, cameraActive]);
 
   // YouTube player
@@ -135,7 +144,22 @@ export default function Viewer() {
       setLoadingQuestions(true);
       const videoId = getVideoId(content.source);
       const qs = await fetchQuestions(videoId, content.title).catch(() => []);
-      questionsRef.current = qs;
+      console.log("[FocusFlow] questions loaded:", qs.length, qs);
+
+      if (qs.length > 0) {
+        questionsRef.current = qs;
+      } else {
+        // Fallback — שאלת ברירת מחדל כשGemini לא זמין
+        questionsRef.current = [
+          {
+            time: 0,
+            question: "האם היית קשוב לתוכן עד כה?",
+            options: ["כן, הייתי מרוכז", "לא ממש", "חלקית", "לא בטוח"],
+            correct: 0,
+          },
+        ];
+        console.log("[FocusFlow] using fallback question (Gemini unavailable)");
+      }
       setLoadingQuestions(false);
     }
   };
@@ -147,49 +171,58 @@ export default function Viewer() {
 
   const handleFrameWindow = async (frames) => {
     if (!sessionRef.current || pausedRef.current) return;
+    if (isInferringRef.current) return; // מונע קריאות מקבילות
+    isInferringRef.current = true;
 
-    const result = await runInference(frames);
-    if (result === null) return;
+    try {
+      const result = await runInference(frames);
+      if (result === null) return;
 
-    const currentScore = parseFloat(result.toFixed(3));
-    setScore(currentScore);
+      // בדיקה נוספת אחרי ה-await — ייתכן שהמצב השתנה בינתיים
+      if (!sessionRef.current || pausedRef.current) return;
 
-    const currentPos = playerRef.current?.getCurrentTime?.() ?? positionRef.current;
-    positionRef.current = currentPos;
+      const currentScore = parseFloat(result.toFixed(3));
+      setScore(currentScore);
 
-    const r = { position: currentPos, score: currentScore, created_at: new Date().toISOString() };
-    setReadings(prev => [...prev, r]);
-    await addReading(sessionRef.current.id, currentPos, currentScore);
+      const currentPos = playerRef.current?.getCurrentTime?.() ?? positionRef.current;
+      positionRef.current = currentPos;
 
-    if (currentScore < LOW_FOCUS_THRESHOLD) {
-      const now = Date.now();
-      if (!lowFocusSinceRef.current) {
-        lowFocusSinceRef.current = now;
-        lowFocusStartRef.current = currentPos;
-        return;
+      setReadings(prev => [...prev, { position: currentPos, score: currentScore, created_at: new Date().toISOString() }]);
+      await addReading(sessionRef.current.id, currentPos, currentScore);
+
+      if (currentScore < LOW_FOCUS_THRESHOLD) {
+        const now = Date.now();
+        if (!lowFocusSinceRef.current) {
+          lowFocusSinceRef.current = now;
+          lowFocusStartRef.current = currentPos;
+          return;
+        }
+        if (now - lowFocusSinceRef.current < 10000) return;
+
+        // 10 שניות ברצף — מפעילים שאלה
+        lowFocusSinceRef.current = null;
+        setAlertCount(c => c + 1);
+
+        const unasked = questionsRef.current.filter(q => !askedQuestionsRef.current.has(q.time));
+        if (unasked.length === 0) askedQuestionsRef.current.clear();
+        const available = unasked.length > 0 ? unasked : questionsRef.current;
+        const q = getQuestionForPosition(available, currentPos);
+
+        if (!q) {
+          handleNoQuestion();
+          return;
+        }
+        askedQuestionsRef.current.add(q.time);
+        pausedRef.current = true;
+        sendPlayerCommand("pauseVideo");
+        updateBanner("low-focus");
+        setActiveQuestion(q);
+      } else {
+        lowFocusSinceRef.current = null;
+        if (bannerRef.current === "low-focus") updateBanner(null);
       }
-      if (now - lowFocusSinceRef.current < 10000) return;
-
-      lowFocusSinceRef.current = null;
-      setBanner("low-focus");
-      setAlertCount(c => c + 1);
-
-      const unasked = questionsRef.current.filter(q => !askedQuestionsRef.current.has(q.time));
-      if (unasked.length === 0) askedQuestionsRef.current.clear();
-      const available = unasked.length > 0 ? unasked : questionsRef.current;
-      const q = getQuestionForPosition(available, currentPos);
-
-      if (!q) {
-        handleNoQuestion();
-        return;
-      }
-      askedQuestionsRef.current.add(q.time);
-      pausedRef.current = true;
-      sendPlayerCommand("pauseVideo");
-      setActiveQuestion(q);
-    } else {
-      lowFocusSinceRef.current = null;
-      if (banner === "low-focus") setBanner(null);
+    } finally {
+      isInferringRef.current = false;
     }
   };
 
@@ -198,35 +231,36 @@ export default function Viewer() {
     sendPlayerCommand("seekTo", [rewindTo, true]);
     sendPlayerCommand("playVideo");
     pausedRef.current = false;
-    setBanner(null);
+    updateBanner(null);
   };
 
   const handleCorrectAnswer = () => {
     setActiveQuestion(null);
     pausedRef.current = false;
-    setBanner(null);
+    updateBanner(null);
     sendPlayerCommand("playVideo");
-    setAlertMsg("תשובה נכונה! ממשיכים.");
-    setTimeout(() => setAlertMsg(""), 2500);
+    setAlertMsg({ message: "תשובה נכונה! ממשיכים.", type: "success" });
+    setTimeout(() => setAlertMsg({ message: "", type: "success" }), 2500);
   };
 
   const handleWrongAnswer = () => {
     setActiveQuestion(null);
     pausedRef.current = false;
-    setBanner(null);
+    updateBanner(null);
     const rewindTo = Math.max(0, lowFocusStartRef.current);
     sendPlayerCommand("seekTo", [rewindTo, true]);
     sendPlayerCommand("playVideo");
-    setAlertMsg("חוזרים לנקודה שבה ירד הקשב.");
-    setTimeout(() => setAlertMsg(""), 3000);
+    setAlertMsg({ message: "חוזרים לנקודה שבה ירד הקשב.", type: "error" });
+    setTimeout(() => setAlertMsg({ message: "", type: "error" }), 3000);
   };
 
   const handleRewindToMissed = () => {
+    setActiveQuestion(null); // סוגר גם את המודל אם פתוח
+    pausedRef.current = false;
+    updateBanner(null);
     const rewindTo = Math.max(0, lowFocusStartRef.current);
     sendPlayerCommand("seekTo", [rewindTo, true]);
     sendPlayerCommand("playVideo");
-    pausedRef.current = false;
-    setBanner(null);
   };
 
   const handleEndSession = async () => {
@@ -238,10 +272,11 @@ export default function Viewer() {
     navigate("/history");
   };
 
-  // average score from local readings
-  const avgScore = readings.length
-    ? readings.reduce((sum, r) => sum + r.score, 0) / readings.length
-    : null;
+  // useMemo — מחושב רק כשה-readings משתנים, לא בכל render
+  const avgScore = useMemo(() =>
+    readings.length ? readings.reduce((sum, r) => sum + r.score, 0) / readings.length : null,
+    [readings]
+  );
 
   const cls = scoreClass(score);
   const thresholdPct = LOW_FOCUS_THRESHOLD * 100;
@@ -308,10 +343,13 @@ export default function Viewer() {
         </div>
       )}
 
-      {alertMsg && (
-        <div className="banner" style={{ margin: "0 36px", background: "#edf7f2", borderColor: "#a8d9be", color: "var(--good)" }}>
-          {alertMsg}
-        </div>
+      {alertMsg.message && (
+        <Toast
+          message={alertMsg.message}
+          type={alertMsg.type}
+          onClose={() => setAlertMsg({ message: "", type: "success" })}
+          duration={alertMsg.type === "success" ? 2500 : 3000}
+        />
       )}
 
       {/* Body */}
@@ -446,8 +484,8 @@ export default function Viewer() {
   );
 }
 
-/* ── Inline SVG focus graph ───────────────────────────────── */
-function FocusGraph({ readings, threshold }) {
+/* ── Inline SVG focus graph — memo מונע re-render מיותר ───── */
+const FocusGraph = memo(function FocusGraph({ readings, threshold }) {
   const W = 800, H = 100;
   const pad = { t: 10, b: 20, l: 30, r: 10 };
   const iW = W - pad.l - pad.r;
@@ -504,4 +542,4 @@ function FocusGraph({ readings, threshold }) {
       </div>
     </div>
   );
-}
+})
