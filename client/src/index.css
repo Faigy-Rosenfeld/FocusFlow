@@ -958,25 +958,31 @@ select.field-input {
 @media (max-width: 768px) {
   :root { --sidebar-w: 220px; }
 
-  /* hide desktop sidebar, show mobile topbar */
   .sidebar-desktop { display: none; }
   .mobile-topbar { display: flex; }
 
-  /* app-shell on mobile: column (topbar above content) */
-  .app-shell {
-    flex-direction: column;
-  }
+  .app-shell { flex-direction: column; }
 
-  .viewer-body { flex-direction: column; padding: 16px; }
-  .viewer-side-col { width: 100%; }
+  /* viewer: stack vertically, content first then side panel small */
+  .viewer-body {
+    flex-direction: column;
+    padding: 12px 16px;
+  }
+  .viewer-side-col {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  /* camera video small on mobile */
+  .camera-panel video { max-height: 140px; object-fit: cover; }
+
   .page-container { padding: 20px 16px; }
   .focus-graph-panel { margin: 0 16px 16px; }
-  .viewer-top-bar { padding: 10px 16px; }
+  .viewer-top-bar { padding: 10px 16px; flex-wrap: wrap; gap: 10px; }
   .flat-table { font-size: 13px; }
   .flat-table thead th,
   .flat-table tbody td { padding: 8px 10px; }
-
-  /* hide less important columns on small screens */
   .flat-table th:nth-child(3),
   .flat-table td:nth-child(3) { display: none; }
 }

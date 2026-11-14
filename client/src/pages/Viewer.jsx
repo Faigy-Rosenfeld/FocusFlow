@@ -343,14 +343,11 @@ export default function Viewer() {
           <div className="viewer-side-col">
             {/* Camera panel */}
             <div className="panel camera-panel">
-              <p className="panel-label">
-                המצלמה
-                {cameraActive && <span style={{ marginRight: 8, color: "var(--good)", fontWeight: 400 }}>מעובד בדפדפן בלבד</span>}
-              </p>
+              <p className="panel-label">המצלמה</p>
 
               {!cameraConsent ? (
                 <div className="camera-consent-panel">
-                  <p>אפשר את המצלמה כדי למדוד את רמת הקשב. הסרטון אינו יוצא מהמכשיר שלך.</p>
+                  <p>אפשר את המצלמה כדי למדוד את רמת הקשב. הוידאו לא יוצא מהמכשיר שלך.</p>
                   <div className="camera-consent-actions">
                     <button className="btn btn-primary btn-sm" onClick={handleCameraConsent}>
                       אפשר מצלמה
@@ -372,10 +369,9 @@ export default function Viewer() {
               ) : (
                 <>
                   <video ref={videoRef} muted playsInline style={{ width: "100%", display: "block", borderRadius: 4, background: "#000" }} />
-                  <div className="camera-status">
-                    <span>{facesDetected ? "פנים זוהו" : "לא זוהו פנים"}</span>
-                    <span>10 פריימים לשנייה</span>
-                  </div>
+                  {!facesDetected && cameraActive && (
+                    <p style={{ fontSize: 12, color: "var(--none)", marginTop: 6 }}>לא זוהו פנים</p>
+                  )}
                   {cameraError && <p className="error-text" style={{ marginTop: 6 }}>{cameraError}</p>}
                 </>
               )}
@@ -383,7 +379,7 @@ export default function Viewer() {
 
             {/* Focus score panel */}
             <div className="panel score-panel">
-              <p className="panel-label">רמת הקשב — חלון של 10 שניות</p>
+              <p className="panel-label">רמת הקשב</p>
 
               {score !== null ? (
                 <>
