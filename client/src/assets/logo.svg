@@ -1,13 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" fill="none">
-  <!-- icon: bracket frame + wave -->
-  <rect x="1" y="1" width="34" height="34" rx="3" stroke="#14202b" stroke-width="2.2" fill="none"/>
-  <!-- top-left corner accent -->
-  <path d="M1 10 L1 1 L10 1" stroke="#14202b" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <!-- bottom-right corner accent -->
-  <path d="M35 26 L35 35 L26 35" stroke="#14202b" stroke-width="3" fill="none" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 40" fill="none">
+  <!-- icon: bracket frame -->
+  <rect x="1" y="3" width="34" height="34" rx="3" stroke="#14202b" stroke-width="2.2" fill="none"/>
   <!-- teal wave -->
-  <path d="M6 18 Q10 10 14 18 Q18 26 22 18 Q26 10 30 18" stroke="#0b7285" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- wordmark -->
-  <text x="44" y="26" font-family="'IBM Plex Sans Hebrew', 'Heebo', sans-serif" font-size="18" font-weight="700" fill="#14202b">Focus</text>
-  <text x="92" y="26" font-family="'IBM Plex Sans Hebrew', 'Heebo', sans-serif" font-size="18" font-weight="700" fill="#0b7285">Flow</text>
+  <path d="M6 20 Q10 12 14 20 Q18 28 22 20 Q26 12 30 20" stroke="#0b7285" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- wordmark: gap of 12px after icon (36+12=48) -->
+  <text x="48" y="27" font-family="'IBM Plex Sans Hebrew', 'Heebo', sans-serif" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#14202b">Focus</text>
+  <text x="106" y="27" font-family="'IBM Plex Sans Hebrew', 'Heebo', sans-serif" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#0b7285">Flow</text>
 </svg>

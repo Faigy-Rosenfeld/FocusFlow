@@ -32,7 +32,10 @@
 }
 
 /* ── Base ───────────────────────────────────────────────── */
-html { direction: rtl; }
+html {
+  direction: rtl;
+  overflow-y: scroll; /* prevents layout shift when scrollbar appears/disappears */
+}
 
 body {
   font-family: 'Heebo', system-ui, sans-serif;
@@ -57,7 +60,7 @@ a:hover { text-decoration: underline; }
 /* ── Layout — sidebar + content ────────────────────────── */
 .app-shell {
   display: flex;
-  flex-direction: row-reverse; /* sidebar on the right in RTL */
+  flex-direction: row; /* sidebar first in DOM = right side because dir=rtl */
   min-height: 100vh;
 }
 
@@ -190,6 +193,12 @@ a:hover { text-decoration: underline; }
   padding: 4px;
   display: flex;
   align-items: center;
+}
+
+.mobile-logo {
+  height: 26px;
+  width: auto;
+  filter: brightness(0) invert(1);
 }
 
 .mobile-backdrop {
@@ -973,6 +982,6 @@ select.field-input {
 }
 
 @media (min-width: 769px) {
-  .mobile-topbar { display: none; }
+  .mobile-topbar { display: none !important; }
   .sidebar-desktop { display: flex; }
 }
