@@ -24,6 +24,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:80",
     "http://localhost",
     "http://frontend:80",   # docker-compose service name
+    "https://focusflow-frontend-487393220084.me-west1.run.app",
 ]
 
 app.add_middleware(

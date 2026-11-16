@@ -44,7 +44,6 @@ IMPORTANT: Return ONLY a valid complete JSON array, no markdown, no explanation,
 async def get_questions(req: QuestionsRequest):
     GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()
     if not GEMINI_API_KEY:
-        print("Gemini error: GEMINI_API_KEY missing", flush=True)
         return []
 
     model_name = (os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL).strip()
@@ -64,12 +63,10 @@ async def get_questions(req: QuestionsRequest):
         )
 
     if not res.is_success:
-        print(f"Gemini API HTTP {res.status_code} (model={model_name}): {res.text[:300]}", flush=True)
         return []
 
     data = res.json()
     raw = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-    print(f"Gemini ({model_name}) raw response: {raw[:300]}", flush=True)
 
     try:
         return json.loads(raw)
@@ -80,5 +77,4 @@ async def get_questions(req: QuestionsRequest):
         try:
             return json.loads(match.group())
         except Exception as e:
-            print(f"Gemini JSON parse error: {e}", flush=True)
             return []

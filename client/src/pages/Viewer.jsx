@@ -144,7 +144,6 @@ export default function Viewer() {
       setLoadingQuestions(true);
       const videoId = getVideoId(content.source);
       const qs = await fetchQuestions(videoId, content.title).catch(() => []);
-      console.log("[FocusFlow] questions loaded:", qs.length, qs);
 
       if (qs.length > 0) {
         questionsRef.current = qs;
@@ -158,7 +157,6 @@ export default function Viewer() {
             correct: 0,
           },
         ];
-        console.log("[FocusFlow] using fallback question (Gemini unavailable)");
       }
       setLoadingQuestions(false);
     }

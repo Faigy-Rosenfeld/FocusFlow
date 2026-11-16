@@ -16,20 +16,15 @@ export function useModel() {
   useEffect(() => {
     (async () => {
       try {
-        console.log("[FocusFlow] Loading ONNX models...");
         fastRef.current = await ort.InferenceSession.create(FAST_MODEL, {
           executionProviders: ["wasm"],
         });
         deepRef.current = await ort.InferenceSession.create(DEEP_MODEL, {
           executionProviders: ["wasm"],
         });
-        console.log("[FocusFlow] ONNX models loaded!", {
-          fastIn: fastRef.current.inputNames,
-          fastOut: fastRef.current.outputNames,
-        });
         setReady(true);
       } catch (e) {
-        console.error("[FocusFlow] Failed to load ONNX models:", e);
+        // Failed to load ONNX models
       }
     })();
   }, []);
@@ -50,7 +45,6 @@ export function useModel() {
         const outData = output[session.outputNames[0]].data;
         const val = parseFloat(outData[0]);
         if (Number.isNaN(val)) {
-          console.error("[FocusFlow] Model returned NaN, raw output:", outData);
           return null;
         }
         return val;
@@ -66,7 +60,6 @@ export function useModel() {
 
       return fastScore;
     } catch (e) {
-      console.error("[FocusFlow] Inference error:", e);
       return null;
     }
   };
