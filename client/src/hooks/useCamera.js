@@ -37,7 +37,7 @@ export function useCamera() {
         });
         setReady(true);
       } catch (e) {
-        setError("Failed to load MediaPipe");
+        setError("טעינת MediaPipe נכשלה. רענן את הדף.");
       }
     })();
 

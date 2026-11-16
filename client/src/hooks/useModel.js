@@ -12,6 +12,7 @@ export function useModel() {
   const fastRef = useRef(null);
   const deepRef = useRef(null);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -24,7 +25,7 @@ export function useModel() {
         });
         setReady(true);
       } catch (e) {
-        // Failed to load ONNX models
+        setError("טעינת מודל הקשב נכשלה. רענן את הדף.");
       }
     })();
   }, []);
@@ -64,5 +65,5 @@ export function useModel() {
     }
   };
 
-  return { ready, runInference };
+  return { ready, error, runInference };
 }

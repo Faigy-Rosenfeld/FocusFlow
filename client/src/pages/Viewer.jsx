@@ -68,7 +68,7 @@ export default function Viewer() {
   const [alertCount, setAlertCount] = useState(0);
 
   const { videoRef, ready: cameraReady, active: cameraActive, facesDetected, error: cameraError, startCamera, stopCamera } = useCamera();
-  const { ready: modelReady, runInference } = useModel();
+  const { ready: modelReady, error: modelError, runInference } = useModel();
 
   const sessionRef = useRef(null);
   const positionRef = useRef(0);
@@ -417,8 +417,8 @@ export default function Viewer() {
             <div className="panel score-panel">
               <p className="panel-label">רמת הקשב</p>
 
-              {score !== null ? (
-                <>
+              {modelError && <p className="error-text" style={{ marginTop: 6 }}>{modelError}</p>}
+              {score !== null ? (                <>
                   <div className={`score-number ${cls}`}>
                     {(score * 100).toFixed(0)}
                     <span style={{ fontSize: 20, fontWeight: 400, color: "var(--muted)", marginRight: 2 }}>%</span>
