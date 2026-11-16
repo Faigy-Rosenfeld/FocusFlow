@@ -18,12 +18,12 @@ const fetchTranscript = async (videoId) => {
 
 export const fetchQuestions = async (videoId, title, retries = 3) => {
   const transcript = await fetchTranscript(videoId);
-
   const token = localStorage.getItem("token");
+  const baseUrl = import.meta.env.VITE_API_URL || "";
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const res = await fetch("/api/gemini/questions", {
+      const res = await fetch(`${baseUrl}/api/gemini/questions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
