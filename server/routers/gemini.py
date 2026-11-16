@@ -1,11 +1,13 @@
 import os
+import json
+import re
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/gemini", tags=["gemini"])
 
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
+DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 
 
 class QuestionsRequest(BaseModel):
@@ -40,28 +42,35 @@ IMPORTANT: Return ONLY a valid complete JSON array, no markdown, no explanation,
 
 @router.post("/questions")
 async def get_questions(req: QuestionsRequest):
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()
     if not GEMINI_API_KEY:
+        print("Gemini error: GEMINI_API_KEY missing", flush=True)
         return []
+
+    model_name = (os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL).strip()
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
 
     prompt = build_prompt(req.title, req.transcript)
 
     async with httpx.AsyncClient(verify=False) as client:
         res = await client.post(
-            f"{GEMINI_URL}?key={GEMINI_API_KEY}",
+            f"{gemini_url}?key={GEMINI_API_KEY}",
             headers={"Content-Type": "application/json"},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"responseMimeType": "application/json"},
+            },
             timeout=60,
         )
 
     if not res.is_success:
+        print(f"Gemini API HTTP {res.status_code} (model={model_name}): {res.text[:300]}", flush=True)
         return []
 
     data = res.json()
     raw = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-    print(f"Gemini raw response: {raw[:300]}", flush=True)
+    print(f"Gemini ({model_name}) raw response: {raw[:300]}", flush=True)
 
-    import json, re
     try:
         return json.loads(raw)
     except Exception:
@@ -70,5 +79,6 @@ async def get_questions(req: QuestionsRequest):
             return []
         try:
             return json.loads(match.group())
-        except Exception:
+        except Exception as e:
+            print(f"Gemini JSON parse error: {e}", flush=True)
             return []
