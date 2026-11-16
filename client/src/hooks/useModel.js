@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import * as ort from "onnxruntime-web";
+
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/";
+ort.env.wasm.numThreads = 1;
 
 const FAST_MODEL = "/models/v1.onnx";
 const DEEP_MODEL = "/models/v4_2.onnx";
@@ -13,8 +16,12 @@ export function useModel() {
   useEffect(() => {
     (async () => {
       try {
-        fastRef.current = await ort.InferenceSession.create(FAST_MODEL);
-        deepRef.current = await ort.InferenceSession.create(DEEP_MODEL);
+        fastRef.current = await ort.InferenceSession.create(FAST_MODEL, {
+          executionProviders: ["wasm"],
+        });
+        deepRef.current = await ort.InferenceSession.create(DEEP_MODEL, {
+          executionProviders: ["wasm"],
+        });
         setReady(true);
       } catch (e) {
         console.error("Failed to load ONNX models", e);
@@ -42,7 +49,7 @@ export function useModel() {
     // fast model first
     const fastScore = await runModel(fastRef.current);
 
-    // if low → run deep model
+    // if low -> run deep model
     if (fastScore < LOW_SCORE_THRESHOLD) {
       const deepScore = await runModel(deepRef.current);
       return deepScore;
