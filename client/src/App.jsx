@@ -6,6 +6,7 @@ import Viewer from "./pages/Viewer";
 import History from "./pages/History";
 import SessionDetail from "./pages/SessionDetail";
 import Profile from "./pages/Profile";
+import Analytics from "./pages/Analytics";
 import "./App.css";
 
 const PrivateRoute = ({ children }) => {
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/library/:id" element={<PrivateRoute><Viewer /></PrivateRoute>} />
         <Route path="/history" element={<PrivateRoute><History /></PrivateRoute>} />
         <Route path="/history/:id" element={<PrivateRoute><SessionDetail /></PrivateRoute>} />
+        <Route path="/analytics" element={<PrivateRoute><Analytics /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
