@@ -144,6 +144,7 @@ def get_session(
     return {
         "id": session.id,
         "content_id": session.content_id,
+        "content_title": session.content_item.title if session.content_item else None,
         "started_at": session.started_at.isoformat(),
         "ended_at": session.ended_at.isoformat() if session.ended_at else None,
         "average_score": round(avg, 3),
