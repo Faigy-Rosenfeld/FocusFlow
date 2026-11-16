@@ -84,8 +84,8 @@ def change_password(
 ):
     if not pwd_context.verify(req.current_password, current_user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    if len(req.new_password) < 8:
-        raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
+    from server.routers.auth import validate_password
+    validate_password(req.new_password)
     current_user.password_hash = pwd_context.hash(req.new_password)
     db.commit()
     return None

@@ -14,6 +14,8 @@ export default function Register() {
     if (!form.display_name.trim()) e.display_name = "נא להזין שם תצוגה.";
     if (!form.email.trim()) e.email = "נא להזין אימייל.";
     if (form.password.length < 8) e.password = "הסיסמה חייבת להכיל לפחות 8 תווים.";
+    else if (!/\d/.test(form.password)) e.password = "הסיסמה חייבת להכיל לפחות ספרה אחת.";
+    else if (!/[A-Z]/.test(form.password)) e.password = "הסיסמה חייבת להכיל לפחות אות גדולה אחת באנגלית.";
     return e;
   };
 
@@ -90,7 +92,7 @@ export default function Register() {
                 type={showPassword ? "text" : "password"}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="לפחות 8 תווים"
+                placeholder="לפחות 8 תווים, אות גדולה וספרה"
                 required
                 autoComplete="new-password"
               />

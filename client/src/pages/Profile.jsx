@@ -72,6 +72,14 @@ export default function Profile() {
       showToast("הסיסמה החדשה חייבת להכיל לפחות 8 תווים.", "error");
       return;
     }
+    if (!/\d/.test(pwForm.new_password)) {
+      showToast("הסיסמה החדשה חייבת להכיל לפחות ספרה אחת.", "error");
+      return;
+    }
+    if (!/[A-Z]/.test(pwForm.new_password)) {
+      showToast("הסיסמה החדשה חייבת להכיל לפחות אות גדולה אחת באנגלית.", "error");
+      return;
+    }
     setPwLoading(true);
     try {
       await changePassword(pwForm);
