@@ -66,7 +66,10 @@
     <div id="view-session" class="view hidden">
       <div class="user-row">
         <span id="session-domain" class="page-domain"></span>
-        <button id="btn-stop" class="btn-link danger">סיים</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="btn-minimize" class="btn-link" title="הצמד לפינה — המדידה ממשיכה">הקטן ↙</button>
+          <button id="btn-stop" class="btn-link danger">סיים</button>
+        </div>
       </div>
 
       <!-- Camera consent -->
@@ -125,6 +128,7 @@
 
   </div>
 
+  <script src="lib/ort.min.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
