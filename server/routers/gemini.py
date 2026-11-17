@@ -2,38 +2,50 @@ import os
 import json
 import re
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from typing import Optional
+
+from server.routers.auth import get_current_user
+from database import schema as models
 
 router = APIRouter(prefix="/api/gemini", tags=["gemini"])
 
-DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-lite"
 
 
 class QuestionsRequest(BaseModel):
-    video_id: str
+    video_id: Optional[str] = None
     title: str
-    transcript: list | None = None
+    transcript: list | None = None   # רשימת {time, text} — ל-YouTube
+    content: str | None = None       # טקסט ישיר — למאמר / PDF
+    text: str | None = None          # שם חלופי ל-content (מאמרי טקסט)
 
 
-def build_prompt(title: str, transcript: list | None) -> str:
+def build_prompt(title: str, transcript: list | None, content: str | None, text: str | None = None) -> str:
+    # עדיפות: transcript (YouTube) → content → text → כותרת בלבד
+    body = content or text
     if transcript:
-        # הגבל transcript ל-200 שורות כדי למנוע חיתוך
         limited = transcript[:200]
-        transcript_text = "\n".join(f"[{t['time']}s] {t['text']}" for t in limited)
+        source_text = "\n".join(f"[{t['time']}s] {t['text']}" for t in limited)
+        source_label = "transcript"
+    elif body:
+        source_text = body[:12000]
+        source_label = "article/document text"
     else:
-        transcript_text = f'Video title: "{title}" (no transcript available, generate questions based on the title)'
+        source_text = f'Title: "{title}" (no content available)'
+        source_label = "title only"
 
-    return f"""You are a focus assistant. Based on the following video transcript, generate exactly 8 multiple choice questions spread across different timestamps.
+    return f"""You are a focus assistant. Based on the following {source_label}, generate exactly 8 multiple choice comprehension questions.
 
-Transcript:
-{transcript_text}
+{source_label.capitalize()}:
+{source_text}
 
 IMPORTANT: Return ONLY a valid complete JSON array, no markdown, no explanation, no truncation:
 [
   {{
-    "time": <seconds into video as integer>,
-    "question": "<question about content near that time>",
+    "time": <integer — seconds offset into the content, or 0 for text articles>,
+    "question": "<question about the content>",
     "options": ["<A>", "<B>", "<C>", "<D>"],
     "correct": <0-3 index of correct answer as integer>
   }}
@@ -41,7 +53,10 @@ IMPORTANT: Return ONLY a valid complete JSON array, no markdown, no explanation,
 
 
 @router.post("/questions")
-async def get_questions(req: QuestionsRequest):
+async def get_questions(
+    req: QuestionsRequest,
+    current_user: models.User = Depends(get_current_user),
+):
     GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()
     if not GEMINI_API_KEY:
         return []
@@ -49,7 +64,7 @@ async def get_questions(req: QuestionsRequest):
     model_name = (os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL).strip()
     gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
 
-    prompt = build_prompt(req.title, req.transcript)
+    prompt = build_prompt(req.title, req.transcript, req.content, req.text)
 
     async with httpx.AsyncClient(verify=False) as client:
         res = await client.post(
