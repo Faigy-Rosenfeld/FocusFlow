@@ -59,7 +59,8 @@ class Session(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    content_id = Column(String, ForeignKey("content_items.id"), nullable=False)
+    content_id = Column(String, ForeignKey("content_items.id"), nullable=True)  # None for extension sessions
+    source_url = Column(String, nullable=True)  # domain from extension
     started_at = Column(DateTime, default=datetime.utcnow)
     ended_at = Column(DateTime, nullable=True)
 

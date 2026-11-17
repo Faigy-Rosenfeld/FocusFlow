@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
+          <rect x="1" y="1" width="34" height="34" rx="3" stroke="#ffffff" stroke-width="2" fill="none"/>
+          <path d="M6 18 Q10 10 14 18 Q18 26 22 18 Q26 10 30 18" stroke="#3cc0d6" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span>FocusFlow</span>
+      </div>
+    </div>
+
+    <!-- Login view -->
+    <div id="view-login" class="view">
+      <p class="view-subtitle">התחבר כדי להתחיל למדוד קשב</p>
+      <div class="form">
+        <div class="field">
+          <label>אימייל</label>
+          <input type="email" id="login-email" placeholder="you@example.com" />
+        </div>
+        <div class="field">
+          <label>סיסמה</label>
+          <div class="pw-wrap">
+            <input type="password" id="login-password" placeholder="••••••••" />
+            <button class="pw-toggle" id="toggle-pw" type="button">
+              <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <p id="login-error" class="error-msg"></p>
+        <button id="btn-login" class="btn btn-primary">כניסה</button>
+        <button id="btn-register" class="btn btn-ghost">אין לך חשבון? הירשם באתר</button>
+      </div>
+    </div>
+
+    <!-- Main view (logged in, no session) -->
+    <div id="view-main" class="view hidden">
+      <div class="user-row">
+        <span id="user-name" class="user-name"></span>
+        <button id="btn-logout" class="btn-link">התנתק</button>
+      </div>
+      <div class="current-page">
+        <span class="page-label">דף נוכחי</span>
+        <span id="page-domain" class="page-domain"></span>
+      </div>
+      <button id="btn-start" class="btn btn-primary btn-large">התחל מדידת קשב</button>
+      <button id="btn-open-site" class="btn btn-ghost">פתח את FocusFlow</button>
+    </div>
+
+    <!-- Session view (active session) -->
+    <div id="view-session" class="view hidden">
+      <div class="user-row">
+        <span id="session-domain" class="page-domain"></span>
+        <button id="btn-stop" class="btn-link danger">סיים</button>
+      </div>
+
+      <!-- Camera consent -->
+      <div id="camera-consent" class="camera-consent">
+        <p>אפשר מצלמה למדידת קשב</p>
+        <p class="consent-note">הוידאו לא יוצא מהמכשיר שלך</p>
+        <button id="btn-enable-camera" class="btn btn-primary btn-large">אפשר מצלמה</button>
+        <button id="btn-skip-camera" class="btn btn-ghost">דלג</button>
+      </div>
+
+      <!-- Camera active -->
+      <div id="camera-active" class="hidden">
+        <video id="camera-video" autoplay muted playsinline></video>
+        <div id="no-face-overlay" class="no-face hidden">לא זוהו פנים</div>
+      </div>
+      </div>
+
+      <!-- Score -->
+      <div class="score-block">
+        <div id="score-value" class="score-number none">--</div>
+        <div id="score-label" class="score-label">ממתין...</div>
+        <div class="score-bar-wrap">
+          <div class="score-bar-bg">
+            <div id="score-bar-fill" class="score-bar-fill none" style="width:0%"></div>
+            <div class="score-threshold"></div>
+          </div>
+          <div class="score-bar-labels">
+            <span>0</span>
+            <span class="threshold-label">0.4</span>
+            <span>1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat">
+          <span class="stat-label">ממוצע</span>
+          <span id="stat-avg" class="stat-value">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">משך</span>
+          <span id="stat-timer" class="stat-value">00:00</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">התראות</span>
+          <span id="stat-alerts" class="stat-value">0</span>
+        </div>
+      </div>
+
+      <!-- Low focus banner -->
+      <div id="low-focus-banner" class="banner hidden">
+        הקשב ירד — נסי להתרכז מחדש
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

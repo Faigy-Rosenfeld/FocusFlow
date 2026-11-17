@@ -14,9 +14,31 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 class SessionCreateRequest(BaseModel):
     content_id: str
 
+class FreeSessionCreateRequest(BaseModel):
+    source_url: str | None = None  # הדומיין מהתוסף
+
 class ReadingCreateRequest(BaseModel):
     position: float
     score: float
+
+
+# ── Routes ───────────────────────────────────────────────────
+@router.post("/free", status_code=201)
+def create_free_session(
+    req: FreeSessionCreateRequest,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """סשן חופשי מהתוסף — ללא content_id"""
+    session = models.Session(
+        user_id=current_user.id,
+        content_id=None,
+        source_url=req.source_url,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return {"id": session.id, "started_at": session.started_at.isoformat()}
 
 
 # ── Routes ───────────────────────────────────────────────────
