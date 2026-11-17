@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "FocusFlow",
+  "version": "1.0.0",
+  "description": "מדוד את רמת הקשב שלך בזמן לימוד",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://focusflow-frontend-487393220084.me-west1.run.app/*",
+    "https://focusflow-backend-487393220084.me-west1.run.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["models/*", "mediapipe/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
