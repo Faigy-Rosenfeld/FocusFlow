@@ -103,16 +103,16 @@ async function logout() {
 // ── MediaPipe ─────────────────────────────────────────────
 async function loadMediaPipe() {
   const { FaceLandmarker, FilesetResolver } = await import(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs"
+    chrome.runtime.getURL("lib/vision_bundle.mjs")
   );
   const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
+    chrome.runtime.getURL("lib/wasm")
   );
   landmarker = await FaceLandmarker.createFromOptions(vision, {
     baseOptions: {
       modelAssetPath:
         "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-      delegate: "GPU",
+      delegate: "CPU",
     },
     runningMode: "VIDEO",
     numFaces: 1,
@@ -121,11 +121,8 @@ async function loadMediaPipe() {
 
 // ── ONNX models ───────────────────────────────────────────
 async function loadModels() {
-  const ort = await import(
-    "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.mjs"
-  );
-  ort.env.wasm.wasmPaths =
-    "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/";
+  // ort נטען כ-script גלובלי ב-popup.html
+  ort.env.wasm.wasmPaths = chrome.runtime.getURL("lib/");
   ort.env.wasm.numThreads = 1;
 
   const baseUrl = chrome.runtime.getURL("models/");
@@ -140,9 +137,6 @@ async function loadModels() {
 
 async function runInference(frames) {
   if (!modelsReady) return null;
-  const ort = await import(
-    "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.mjs"
-  );
 
   const flat = new Float32Array(100 * 478 * 3);
   for (let i = 0; i < 100; i++) flat.set(frames[i], i * 478 * 3);
@@ -274,20 +268,68 @@ function checkLowFocus(score, position) {
     }
     if (Date.now() - lowFocusSince < LOW_FOCUS_SECONDS * 1000) return;
 
-    // 10 שניות ברצף
+    // 10 שניות ברצף — הצג התראה והחזר חלון
     lowFocusSince = null;
     alertCount++;
     const alertEl = $("stat-alerts");
     if (alertEl) alertEl.textContent = alertCount;
     banner?.classList.remove("hidden");
     setTimeout(() => banner?.classList.add("hidden"), 5000);
+
+    // החזר את החלון למסך
+    restoreWindow();
   } else {
     lowFocusSince = null;
     banner?.classList.add("hidden");
   }
 }
 
-// ── Session ────────────────────────────────────────────────
+// ── Window management ─────────────────────────────────────
+let currentWindowId = null;
+
+async function openSessionWindow() {
+  const win = await chrome.windows.create({
+    url: chrome.runtime.getURL("popup.html"),
+    type: "popup",
+    width: 300,
+    height: 500,
+    focused: true,
+  });
+  currentWindowId = win.id;
+  await chrome.storage.local.set({ windowId: win.id });
+}
+
+async function minimizeWindow() {
+  if (currentWindowId) {
+    chrome.windows.update(currentWindowId, {
+      width: 220,
+      height: 180,
+      left: window.screen.availWidth - 230,
+      top: window.screen.availHeight - 190,
+      focused: false,
+    });
+  }
+}
+
+async function restoreWindow() {
+  if (currentWindowId) {
+    chrome.windows.update(currentWindowId, {
+      width: 300,
+      height: 500,
+      left: Math.floor((window.screen.availWidth - 300) / 2),
+      top: Math.floor((window.screen.availHeight - 500) / 2),
+      focused: true,
+    });
+  }
+}
+
+// אוטומטי — כשעוברים לחלון אחר, מקטין; כשחוזרים, מרחיב
+chrome.windows.onFocusChanged.addListener((focusedWindowId) => {
+  if (!currentWindowId || !sessionActive) return;
+  if (focusedWindowId !== currentWindowId && focusedWindowId !== chrome.windows.WINDOW_ID_NONE) {
+    minimizeWindow();
+  }
+});
 async function startSession() {
   const data = await apiCall("POST", "/api/sessions/free", {});
   sessionId = data.id;
@@ -304,9 +346,13 @@ async function startSession() {
   }, 1000);
 
   await chrome.storage.local.set({ sessionId });
-  showView("session");
 
-  // הצג consent מצלמה — לא מפעיל אוטומטית
+  // שמור את ה-windowId הנוכחי
+  const wins = await chrome.windows.getCurrent();
+  currentWindowId = wins.id;
+  await chrome.storage.local.set({ windowId: wins.id });
+
+  showView("session");
   $("camera-consent")?.classList.remove("hidden");
   $("camera-active")?.classList.add("hidden");
 }
@@ -320,16 +366,17 @@ async function stopSession() {
     await apiCall("POST", `/api/sessions/${sessionId}/end`).catch(() => {});
     sessionId = null;
   }
-  await chrome.storage.local.set({ sessionId: null });
+  await chrome.storage.local.set({ sessionId: null, windowId: null });
+  currentWindowId = null;
   showView("main");
 }
 
 // ── Init ───────────────────────────────────────────────────
 async function init() {
-  // טען state שמור
-  const stored = await chrome.storage.local.get(["token", "user", "sessionId"]);
+  const stored = await chrome.storage.local.get(["token", "user", "sessionId", "windowId"]);
   token = stored.token || null;
   user = stored.user || null;
+  currentWindowId = stored.windowId || null;
 
   if (!token) {
     showView("login");
@@ -347,19 +394,26 @@ async function init() {
     return;
   }
 
-  // הצג שם משתמש ודומיין
   const nameEl = $("user-name");
   if (nameEl) nameEl.textContent = user.display_name;
 
-  // קבל דומיין של הטאב הפעיל
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = new URL(tab.url);
-    const domainEl = $("page-domain");
-    if (domainEl) domainEl.textContent = url.hostname;
-    const sessionDomainEl = $("session-domain");
-    if (sessionDomainEl) sessionDomainEl.textContent = url.hostname;
+    $("page-domain") && ($("page-domain").textContent = url.hostname);
+    $("session-domain") && ($("session-domain").textContent = url.hostname);
   } catch {}
+
+  // אם יש סשן פעיל — חזור לview של הסשן
+  if (stored.sessionId) {
+    sessionId = stored.sessionId;
+    sessionActive = true;
+    startTime = Date.now();
+    showView("session");
+    $("camera-consent")?.classList.remove("hidden");
+    $("camera-active")?.classList.add("hidden");
+    return;
+  }
 
   showView("main");
 }
@@ -448,6 +502,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // מזער
+  $("btn-minimize")?.addEventListener("click", () => {
+    minimizeWindow();
+  });
+
   // סיים סשן
   $("btn-stop")?.addEventListener("click", stopSession);
 
@@ -462,11 +521,25 @@ document.addEventListener("DOMContentLoaded", () => {
     $("camera-active")?.appendChild(loadingEl);
 
     try {
+      // בקש הרשאת מצלמה דרך iframe נסתר
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop()); // שחרר מיד, startCamera יבקש שוב
+
       await Promise.all([loadMediaPipe(), loadModels()]);
       $("loading-msg")?.remove();
       await startCamera();
     } catch (err) {
       $("loading-msg")?.remove();
+      if (err.name === "NotAllowedError") {
+        // פתח כחלון קטן במקום טאב מלא
+        chrome.windows.create({
+          url: chrome.runtime.getURL("popup.html"),
+          type: "popup",
+          width: 300,
+          height: 500,
+          focused: true
+        });
+      }
       console.error("Camera/model error:", err);
     }
   });
