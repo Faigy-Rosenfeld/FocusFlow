@@ -53,6 +53,41 @@ export const fetchQuestions = async (videoId, title, retries = 3) => {
   return [];
 };
 
+export const fetchQuestionsForText = async (title, content, retries = 3) => {
+  const token = localStorage.getItem("token");
+  const baseUrl = import.meta.env.VITE_API_URL || "";
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${baseUrl}/api/gemini/questions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({ title, content: content?.slice(0, 12000) ?? null }),
+        signal: AbortSignal.timeout(90000),
+      });
+
+      if (res.ok) return res.json();
+
+      if (res.status === 503 && attempt < retries) {
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+        continue;
+      }
+
+      return [];
+    } catch {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+        continue;
+      }
+      return [];
+    }
+  }
+  return [];
+};
+
 export const getQuestionForPosition = (questions, position) => {
   if (!questions?.length) return null;
 
