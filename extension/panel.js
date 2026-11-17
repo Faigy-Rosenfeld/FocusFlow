@@ -938,11 +938,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("btn-register")?.addEventListener("click", () => {
-    chrome.tabs.create({ url: "https://focusflow-frontend-487393220084.me-west1.run.app/register" });
+    chrome.tabs.create({ url: "https://focusflow-app.myftp.org/register" });
   });
 
   $("btn-open-site")?.addEventListener("click", () => {
-    chrome.tabs.create({ url: "https://focusflow-frontend-487393220084.me-west1.run.app" });
+    chrome.tabs.create({ url: "https://focusflow-app.myftp.org" });
   });
 
   $("btn-logout")?.addEventListener("click", doLogout);

@@ -471,14 +471,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // הירשם באתר
   $("btn-register")?.addEventListener("click", () => {
     chrome.tabs.create({
-      url: "https://focusflow-frontend-487393220084.me-west1.run.app/register",
+      url: "https://focusflow-app.myftp.org/register",
     });
   });
 
   // פתח אתר
   $("btn-open-site")?.addEventListener("click", () => {
     chrome.tabs.create({
-      url: "https://focusflow-frontend-487393220084.me-west1.run.app",
+      url: "https://focusflow-app.myftp.org",
     });
   });
 
