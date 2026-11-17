@@ -139,7 +139,7 @@ pip install -r requirements.txt
 DATABASE_URL=postgresql://user:password@localhost:5432/focusflow
 SECRET_KEY=your-secret-key
 GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-2.0-flash-lite   # אופציונלי
+GEMINI_MODEL=gemini-3.1-flash-lite   # אופציונלי
 ```
 
 הפעלה:
@@ -168,7 +168,7 @@ npm run dev
 | `DATABASE_URL` | חיבור PostgreSQL | — |
 | `SECRET_KEY` | מפתח לחתימת JWT | — |
 | `GEMINI_API_KEY` | מפתח Gemini API | — |
-| `GEMINI_MODEL` | שם המודל | `gemini-2.0-flash-lite` |
+| `GEMINI_MODEL` | שם המודל | `gemini-3.1-flash-lite` |
 
 ---
 
