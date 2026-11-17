@@ -11,7 +11,8 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://focusflow-app.myftp.org/*"
   ],
   "action": {
     "default_icon": {

@@ -29,10 +29,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 
   const token = stored.token;
   if (session.sessionId && token) {
-    const IS_DEV = !("update_url" in chrome.runtime.getManifest());
-    const API = IS_DEV
-      ? "http://localhost:8000"
-      : "https://focusflow-backend-487393220084.me-west1.run.app";
+    const API = "https://focusflow-app.myftp.org";
     try {
       await fetch(`${API}/api/sessions/${session.sessionId}/end`, {
         method: "POST",

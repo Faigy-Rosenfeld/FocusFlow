@@ -1,9 +1,6 @@
 // panel.js — Side Panel (per-tab isolated)
 
-const IS_DEV = !("update_url" in chrome.runtime.getManifest());
-const API = IS_DEV
-  ? "http://localhost:8000"
-  : "https://focusflow-backend-487393220084.me-west1.run.app";
+const API = "https://focusflow-app.myftp.org";
 
 const LOW_FOCUS_THRESHOLD = 0.4;
 const FRAME_RATE = 10;

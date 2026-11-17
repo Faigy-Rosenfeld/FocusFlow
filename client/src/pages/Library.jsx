@@ -135,6 +135,18 @@ export default function Library() {
             </div>
           )}
 
+          {/* Extension install guide */}
+          <div className="panel" style={{ marginBottom: 16, background: "var(--surface-alt, #f8f9ff)", border: "1px solid var(--border)" }}>
+            <p className="panel-label" style={{ marginBottom: 8 }}>🧩 התקנת תוסף FocusFlow לדפדפן Chrome</p>
+            <ol style={{ margin: 0, paddingRight: 20, lineHeight: 2, fontSize: 14, color: "var(--text)" }}>
+              <li>הורד את תיקיית התוסף (<code dir="ltr">extension</code>) מהפרויקט למחשב שלך.</li>
+              <li>פתח את Chrome וגש לכתובת <code dir="ltr">chrome://extensions</code>.</li>
+              <li>הפעל את <strong>מצב מפתח</strong> (<span dir="ltr">Developer mode</span>) — מתג בפינה הימנית העליונה.</li>
+              <li>לחץ על <strong>טעינת תוסף לא ארוז</strong> (<span dir="ltr">Load unpacked</span>) ובחר את תיקיית <code dir="ltr">extension</code>.</li>
+              <li>התוסף יופיע בסרגל הכלים — לחץ עליו כדי להתחיל סשן.</li>
+            </ol>
+          </div>
+
           {/* List */}
           <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
             {items.length === 0 ? (
