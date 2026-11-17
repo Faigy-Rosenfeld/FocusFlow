@@ -11,7 +11,7 @@ from database import schema as models
 
 router = APIRouter(prefix="/api/gemini", tags=["gemini"])
 
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-lite"
+DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 
 
 class QuestionsRequest(BaseModel):
